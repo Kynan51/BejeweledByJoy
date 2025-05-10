@@ -44,6 +44,7 @@ export default function Profile() {
   useEffect(() => {
     // Get current session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[DEBUG] Session fetched:", session)
       setSession(session)
 
       if (!session) {
@@ -57,6 +58,7 @@ export default function Profile() {
 
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[DEBUG] Auth state changed:", event, session)
       setSession(session)
       if (!session) {
         router.push("/login?redirect=/profile")
@@ -94,20 +96,29 @@ export default function Profile() {
   async function fetchUserData(userId) {
     try {
       setLoading(true)
+      console.log("[DEBUG] Fetching user data for userId:", userId)
 
       // Get user data from our users table
       const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
+      console.log("[DEBUG] Supabase user data fetch result:", { data, error })
 
       if (error) {
         throw error
       }
 
       if (data) {
-        setUser(data)
+        // If data is an array (from Supabase), use the first element
+        const userData = Array.isArray(data) ? data[0] : data;
+        setUser(userData)
         setFormData({
-          full_name: data.full_name || "",
-          phone: data.phone || "",
-          address: data.address || "",
+          full_name: userData.full_name ?? "",
+          phone: userData.phone ?? "",
+          address: userData.address ?? "",
+        })
+        console.log("[DEBUG] Setting formData:", {
+          full_name: userData.full_name ?? "",
+          phone: userData.phone ?? "",
+          address: userData.address ?? "",
         })
       }
     } catch (error) {
@@ -223,15 +234,14 @@ export default function Profile() {
       setError(null)
       setMessage(null)
 
-      // Update user data
-      const { error } = await supabase
-        .from("users")
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          address: formData.address,
-        })
-        .eq("id", session.user.id)
+      // Update user data using the upsert_user_profile function
+      const { error } = await supabase.rpc("upsert_user_profile", {
+        p_id: session.user.id,
+        p_email: user?.email || "",
+        p_full_name: formData.full_name,
+        p_address: formData.address,
+        p_phone: formData.phone || null
+      })
 
       if (error) {
         throw error

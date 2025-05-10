@@ -13,6 +13,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
+  const [address, setAddress] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
@@ -42,17 +43,16 @@ export default function Register() {
       }
 
       if (data && data.user) {
-        // Add user details to our users table
-        const { error: dbError } = await supabase.from("users").insert([
-          {
-            id: data.user.id,
-            email,
-            full_name: fullName,
-            phone,
-          },
-        ])
-        if (dbError) {
-          throw dbError
+        // Store user details in the users table using the upsert_user_profile function
+        const { error: upsertError } = await supabase.rpc("upsert_user_profile", {
+          p_id: data.user.id,
+          p_email: email,
+          p_full_name: fullName,
+          p_address: address,
+          p_phone: phone || null
+        })
+        if (upsertError) {
+          throw upsertError
         }
 
         setMessage(
@@ -67,6 +67,7 @@ export default function Register() {
         setConfirmPassword("")
         setFullName("")
         setPhone("")
+        setAddress("")
 
         // Redirect to registration success page after a short delay
         setTimeout(() => {
@@ -178,6 +179,24 @@ export default function Register() {
                     autoComplete="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                  Address
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    autoComplete="street-address"
+                    required
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
                   />
                 </div>
