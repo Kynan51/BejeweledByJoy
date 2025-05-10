@@ -6,6 +6,7 @@ import Head from "next/head"
 import Link from "next/link"
 import Layout from "../components/Layout"
 import supabase from "../utils/supabaseClient"
+import { MoonLoader } from "react-spinners"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -13,6 +14,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [view, setView] = useState("sign-in") // 'sign-in' or 'forgot-password'
+  const [emailResent, setEmailResent] = useState(false)
 
   const router = useRouter()
   const { redirect } = router.query
@@ -53,8 +55,18 @@ export default function Login() {
         router.push(redirect || "/")
       }, 500)
     } catch (error) {
-      console.error("Error signing in (outer catch):", error)
-      setError(error.message)
+      // Supabase rate limit error handling
+      if (
+        error?.message?.toLowerCase().includes("rate limit") ||
+        error?.message?.toLowerCase().includes("too many requests") ||
+        error?.status === 429
+      ) {
+        setError(
+          "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
+        )
+      } else {
+        setError(error.message)
+      }
     } finally {
       setLoading(false)
       console.log('Sign in process finished')
@@ -78,8 +90,33 @@ export default function Login() {
       alert("Check your email for a password reset link.")
       setView("sign-in")
     } catch (error) {
-      console.error("Error resetting password:", error)
-      setError(error.message)
+      // Supabase rate limit error handling
+      if (
+        error?.message?.toLowerCase().includes("rate limit") ||
+        error?.message?.toLowerCase().includes("too many requests") ||
+        error?.status === 429
+      ) {
+        setError(
+          "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
+        )
+      } else {
+        setError(error.message)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setLoading(true)
+    setError(null)
+    setEmailResent(false)
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email })
+      if (error) throw error
+      setEmailResent(true)
+    } catch (err) {
+      setError("Failed to resend verification email. Please try again later.")
     } finally {
       setLoading(false)
     }
@@ -115,6 +152,21 @@ export default function Login() {
                 role="alert"
               >
                 <span className="block sm:inline">{error}</span>
+                {error?.toLowerCase().includes("not confirmed") && !emailResent && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      className="text-purple-600 hover:text-purple-500 underline text-sm font-medium disabled:opacity-50"
+                      disabled={loading}
+                    >
+                      {loading ? <MoonLoader color='#7c3aed' size={18} /> : "Resend verification email"}
+                    </button>
+                  </div>
+                )}
+                {emailResent && (
+                  <div className="mt-2 text-green-600 text-sm">Verification email sent! Please check your inbox.</div>
+                )}
               </div>
             )}
 

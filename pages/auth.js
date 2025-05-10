@@ -46,8 +46,18 @@ export default function Auth() {
       // Redirect to admin dashboard
       router.push("/admin")
     } catch (error) {
-      console.error("Error signing in:", error)
-      setError(error.message)
+      // Supabase rate limit error handling
+      if (
+        error?.message?.toLowerCase().includes("rate limit") ||
+        error?.message?.toLowerCase().includes("too many requests") ||
+        error?.status === 429
+      ) {
+        setError(
+          "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
+        )
+      } else {
+        setError(error.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -69,8 +79,18 @@ export default function Auth() {
 
       setMessage("Check your email for a password reset link.")
     } catch (error) {
-      console.error("Error resetting password:", error)
-      setError(error.message)
+      // Supabase rate limit error handling
+      if (
+        error?.message?.toLowerCase().includes("rate limit") ||
+        error?.message?.toLowerCase().includes("too many requests") ||
+        error?.status === 429
+      ) {
+        setError(
+          "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
+        )
+      } else {
+        setError(error.message)
+      }
     } finally {
       setLoading(false)
     }

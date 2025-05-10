@@ -74,8 +74,18 @@ export default function Register() {
         }, 200)
       }
     } catch (error) {
-      console.error("Error registering:", error)
-      setError(error.message)
+      // Supabase rate limit error handling
+      if (
+        error?.message?.toLowerCase().includes("rate limit") ||
+        error?.message?.toLowerCase().includes("too many requests") ||
+        error?.status === 429
+      ) {
+        setError(
+          "You have reached the limit for verification emails. Please wait 15 minutes and try signing up again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
+        )
+      } else {
+        setError(error.message)
+      }
     } finally {
       setLoading(false)
     }

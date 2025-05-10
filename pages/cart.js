@@ -8,6 +8,7 @@ import { useRouter } from "next/router"
 import Layout from "../components/Layout"
 import { useCart } from "../contexts/CartContext"
 import supabase from "../utils/supabaseClient"
+import { MoonLoader } from "react-spinners"
 
 export default function Cart() {
   const { cart, loading, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
@@ -98,19 +99,8 @@ export default function Cart() {
           <h2 className="text-2xl font-bold mb-4">Your BejeweledByJoy Shopping Cart</h2>
 
           {loading ? (
-            <div className="mt-6 animate-pulse">
-              <div className="space-y-6">
-                {[...Array(3)].map((_, index) => (
-                  <div key={index} className="flex items-center p-6 bg-white rounded-lg shadow-md">
-                    <div className="h-20 w-20 bg-gray-200 rounded"></div>
-                    <div className="ml-6 flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="h-8 w-24 bg-gray-200 rounded"></div>
-                  </div>
-                ))}
-              </div>
+            <div className="mt-6 flex justify-center items-center min-h-[120px]">
+              <MoonLoader color="#7c3aed" size={48} />
             </div>
           ) : cart.length === 0 ? (
             <div className="mt-6 bg-white p-6 rounded-lg shadow-md text-center">
