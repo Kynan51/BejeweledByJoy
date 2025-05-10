@@ -233,29 +233,34 @@ export default function Profile() {
       setFormLoading(true)
       setError(null)
       setMessage(null)
-
-      // Update user data using the upsert_user_profile function
-      const { error } = await supabase.rpc("upsert_user_profile", {
+      console.log('[DEBUG] Submitting profile update:', {
         p_id: session.user.id,
         p_email: user?.email || "",
         p_full_name: formData.full_name,
         p_address: formData.address,
         p_phone: formData.phone || null
       })
-
+      // Directly update the user profile in the users table
+      const { error } = await supabase
+        .from("users")
+        .update({
+          full_name: formData.full_name,
+          address: formData.address,
+          phone: formData.phone,
+          email: user?.email || ""
+        })
+        .eq("id", session.user.id);
+      console.log('[DEBUG] Supabase direct update response:', { error });
       if (error) {
-        throw error
+        throw error;
       }
-
-      setMessage("Profile updated successfully!")
-
-      // If checkout is true, redirect to cart
+      setMessage("Profile updated successfully!");
       if (checkout) {
-        router.push("/cart")
+        router.push("/cart");
       }
     } catch (error) {
       console.error("Error updating profile:", error)
-      setError("Failed to update profile. Please try again.")
+      setError("Failed to update profile. Please try again. " )
     } finally {
       setFormLoading(false)
     }
@@ -643,10 +648,8 @@ export default function Profile() {
                     ) : orders.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-gray-500 mb-4">You haven't placed any orders yet.</p>
-                        <Link href="/">
-                          <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                            Start Shopping
-                          </a>
+                        <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                          Start Shopping
                         </Link>
                       </div>
                     ) : (
@@ -686,10 +689,8 @@ export default function Profile() {
                                   Total: ${order.total_amount.toFixed(2)}
                                 </span>
                               </div>
-                              <Link href={`/order-confirmation/${order.id}`}>
-                                <a className="text-sm font-medium text-purple-600 hover:text-purple-500">
-                                  View Details
-                                </a>
+                              <Link href={`/order-confirmation/${order.id}`} className="text-sm font-medium text-purple-600 hover:text-purple-500">
+                                View Details
                               </Link>
                             </div>
                           </div>
@@ -943,10 +944,8 @@ export default function Profile() {
                     ) : wishlist.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-gray-500 mb-4">Your wishlist is empty.</p>
-                        <Link href="/">
-                          <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                            Explore Products
-                          </a>
+                        <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                          Explore Products
                         </Link>
                       </div>
                     ) : (
@@ -972,10 +971,7 @@ export default function Profile() {
                               <div>
                                 <h3 className="text-sm text-gray-700">
                                   <Link href={`/product/${item.products.id}`}>
-                                    <a>
-                                      <span aria-hidden="true" className="absolute inset-0" />
-                                      {item.products.name}
-                                    </a>
+                                    {item.products.name}
                                   </Link>
                                 </h3>
                                 <p className="mt-1 text-sm text-gray-500">

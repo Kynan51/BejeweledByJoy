@@ -10,6 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       init.headers = {
         ...(init.headers || {}),
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'apikey': supabaseAnonKey,
       };
       console.log('[Supabase Fetch]', input, init.headers);
