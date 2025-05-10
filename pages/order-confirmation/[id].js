@@ -130,7 +130,7 @@ export default function OrderConfirmation() {
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Total Amount:</span>
-                  <span className="font-medium">${order.total_amount.toFixed(2)}</span>
+                  <span className="font-medium">Ksh{order.total_amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Status:</span>
@@ -177,14 +177,14 @@ export default function OrderConfirmation() {
                           <div className="text-sm font-medium text-gray-900">{item.product_name}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">${item.product_price.toFixed(2)}</div>
+                          <div className="text-sm text-gray-500">Ksh{item.product_price.toFixed(2)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{item.quantity}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            ${(item.product_price * item.quantity).toFixed(2)}
+                            Ksh{(item.product_price * item.quantity).toFixed(2)}
                           </div>
                         </td>
                       </tr>

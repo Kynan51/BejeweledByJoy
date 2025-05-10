@@ -124,9 +124,9 @@ export default function ProductDetail() {
                 <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{product.name}</h1>
                 <div className="mt-3">
                   <div className="flex items-end">
-                    <p className="text-3xl font-bold text-purple-600">${discountedPrice?.toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-purple-600">Ksh{discountedPrice?.toFixed(2)}</p>
                     {product.discount > 0 && (
-                      <p className="ml-2 text-lg text-gray-500 line-through">${product.price?.toFixed(2)}</p>
+                      <p className="ml-2 text-lg text-gray-500 line-through">Ksh{product.price?.toFixed(2)}</p>
                     )}
                     {product.discount > 0 && (
                       <span className="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">

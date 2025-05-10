@@ -142,7 +142,7 @@ export default function Cart() {
 
                       <div className="ml-6 flex-1">
                         <h3 className="text-base font-medium text-gray-900">{item.name}</h3>
-                        <p className="mt-1 text-sm text-gray-500">${item.price.toFixed(2)}</p>
+                        <p className="mt-1 text-sm text-gray-500">Ksh{item.price.toFixed(2)}</p>
                       </div>
 
                       <div className="flex items-center">
@@ -182,7 +182,7 @@ export default function Cart() {
                       </div>
 
                       <div className="ml-6 text-base font-medium text-gray-900">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        Ksh{(item.price * item.quantity).toFixed(2)}
                       </div>
 
                       <button onClick={() => removeFromCart(item.id)} className="ml-6 text-red-500 hover:text-red-700">
@@ -205,7 +205,7 @@ export default function Cart() {
                 <div className="border-t border-gray-200 px-6 py-4">
                   <div className="flex justify-between text-base font-medium text-gray-900">
                     <p>Subtotal</p>
-                    <p>${getCartTotal().toFixed(2)}</p>
+                    <p>Ksh{getCartTotal().toFixed(2)}</p>
                   </div>
                   <p className="mt-0.5 text-sm text-gray-500">Shipping and taxes calculated at checkout.</p>
                 </div>

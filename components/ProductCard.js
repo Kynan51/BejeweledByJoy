@@ -103,10 +103,10 @@ export default function ProductCard({ product, trackView = true }) {
         <h3 className="text-lg font-semibold text-gray-800 mb-1 truncate">{product.name}</h3>
 
         <div className="flex items-end mb-2">
-          <span className="text-lg font-bold text-purple-600">${discountedPrice.toFixed(2)}</span>
+          <span className="text-lg font-bold text-purple-600">Ksh{discountedPrice.toFixed(2)}</span>
 
           {product.discount > 0 && (
-            <span className="ml-2 text-sm text-gray-500 line-through">${product.price.toFixed(2)}</span>
+            <span className="ml-2 text-sm text-gray-500 line-through">Ksh{product.price.toFixed(2)}</span>
           )}
         </div>
 

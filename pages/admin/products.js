@@ -470,7 +470,7 @@ export default function AdminProducts() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">${product.price.toFixed(2)}</div>
+                              <div className="text-sm text-gray-900">Ksh{product.price.toFixed(2)}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {product.discount > 0 ? (
@@ -563,7 +563,7 @@ export default function AdminProducts() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                              Price ($) *
+                              Price (Ksh) *
                             </label>
                             <input
                               type="text"

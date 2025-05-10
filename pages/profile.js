@@ -686,7 +686,7 @@ export default function Profile() {
                             <div className="px-4 py-3 flex justify-between items-center">
                               <div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  Total: ${order.total_amount.toFixed(2)}
+                                  Total: Ksh{order.total_amount.toFixed(2)}
                                 </span>
                               </div>
                               <Link href={`/order-confirmation/${order.id}`} className="text-sm font-medium text-purple-600 hover:text-purple-500">
@@ -951,7 +951,7 @@ export default function Profile() {
                     ) : (
                       <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
                         {wishlist.map((item) => (
-                          <div key={item.id} className="group relative">
+                          <Link key={item.id} href={`/product/${item.products.id}`} className="group relative block focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg">
                             <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 group-hover:opacity-75">
                               {item.products.image_urls && item.products.image_urls.length > 0 ? (
                                 <Image
@@ -969,26 +969,22 @@ export default function Profile() {
                             </div>
                             <div className="mt-4 flex justify-between">
                               <div>
-                                <h3 className="text-sm text-gray-700">
-                                  <Link href={`/product/${item.products.id}`}>
-                                    {item.products.name}
-                                  </Link>
-                                </h3>
+                                <h3 className="text-sm text-gray-700">{item.products.name}</h3>
                                 <p className="mt-1 text-sm text-gray-500">
                                   Added on {new Date(item.created_at).toLocaleDateString()}
                                 </p>
                               </div>
-                              <p className="text-sm font-medium text-gray-900">${item.products.price.toFixed(2)}</p>
+                              <p className="text-sm font-medium text-gray-900">Ksh{item.products.price.toFixed(2)}</p>
                             </div>
                             <div className="mt-2 flex justify-between">
                               <button
-                                onClick={() => handleRemoveFromWishlist(item.id)}
+                                onClick={e => { e.preventDefault(); handleRemoveFromWishlist(item.id); }}
                                 className="text-sm text-red-600 hover:text-red-500"
                               >
                                 Remove
                               </button>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     )}
