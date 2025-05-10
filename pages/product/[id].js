@@ -22,26 +22,28 @@ export default function ProductDetail() {
 
   useEffect(() => {
     async function fetchProduct() {
-      if (!id) return
-
+      if (!id) return;
       try {
-        setLoading(true)
-
+        setLoading(true);
         // Fetch product details
-        const { data, error } = await supabase.from("products").select("*").eq("id", id).single()
-
+        const { data, error } = await supabase.from("products").select("*").eq("id", id);
+        const product = Array.isArray(data) ? data[0] : data;
+        console.log("[ProductDetail] Fetched product:", product, "error:", error, "id:", id);
         if (error) {
-          throw error
+          setError(error.message || "Error fetching product");
+          setProduct(null);
+          return;
         }
-
-        if (!data) {
-          throw new Error("Product not found")
+        if (!product) {
+          setError("Product not found");
+          setProduct(null);
+          return;
         }
-
-        // Debug: log image_urls
-        console.log('Fetched product image_urls:', data.image_urls)
-        setProduct(data)
-
+        // Fallback: if image_urls is missing or empty, use placeholder
+        if (!product.image_urls || !Array.isArray(product.image_urls) || product.image_urls.length === 0) {
+          product.image_urls = ["/placeholder.jpg"];
+        }
+        setProduct(product);
         // Track product view for analytics
         await supabase.from("views").insert([
           {
@@ -49,21 +51,24 @@ export default function ProductDetail() {
             user_agent: navigator.userAgent,
             user_id: (await supabase.auth.getSession()).data.session?.user?.id || null,
           },
-        ])
+        ]);
       } catch (error) {
-        console.error("Error fetching product:", error)
-        setError("Failed to load product details. Please try again later.")
+        console.error("[ProductDetail] Error fetching product:", error);
+        setError("Failed to load product details. Please try again later.");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-
-    fetchProduct()
+    fetchProduct();
   }, [id])
 
   const handleQuantityChange = (e) => {
     const value = Number.parseInt(e.target.value)
-    setQuantity(value > 0 ? value : 1)
+    if (product && value > product.quantity) {
+      setQuantity(product.quantity)
+    } else {
+      setQuantity(value > 0 ? value : 1)
+    }
   }
 
   const handleAddToCart = () => {
@@ -91,54 +96,38 @@ export default function ProductDetail() {
           content={product ? `${product.description?.substring(0, 160)}` : "View our beautiful BejeweledByJoy piece details"}
         />
       </Head>
-
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {loading ? (
-            <div className="animate-pulse">
-              <div className="md:flex md:items-start">
-                <div className="md:w-1/2">
-                  <div className="aspect-w-1 aspect-h-1 w-full bg-gray-200 rounded-lg"></div>
-                </div>
-                <div className="mt-6 md:mt-0 md:ml-10 md:w-1/2">
-                  <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
-                  <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div>
-                  <div className="h-24 bg-gray-200 rounded w-full mb-6"></div>
-                  <div className="h-10 bg-gray-200 rounded w-full"></div>
-                </div>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-10">
-              <p className="text-red-500">{error}</p>
-              <button
-                onClick={() => router.back()}
-                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              >
-                Go Back
-              </button>
-            </div>
-          ) : product ? (
+      {loading ? (
+        <div className="flex justify-center items-center h-96">Loading...</div>
+      ) : error ? (
+        <div className="flex justify-center items-center h-96 text-red-500">{error}</div>
+      ) : !product ? (
+        <div className="text-center py-10">
+          <p className="text-gray-500">Product not found.</p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          >
+            Back to Products
+          </button>
+        </div>
+      ) : (
+        <div className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="md:flex md:items-start">
               <div className="md:w-1/2 relative">
                 <div className="absolute top-4 right-4 z-10">
                   <WishlistButton productId={product.id} />
                 </div>
-                <ImageGallery images={product.image_urls || []} />
+                <ImageGallery images={product?.image_urls || ["/placeholder.jpg"]} />
               </div>
-
               <div className="mt-6 md:mt-0 md:ml-10 md:w-1/2">
                 <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{product.name}</h1>
-
                 <div className="mt-3">
                   <div className="flex items-end">
                     <p className="text-3xl font-bold text-purple-600">${discountedPrice?.toFixed(2)}</p>
-
                     {product.discount > 0 && (
                       <p className="ml-2 text-lg text-gray-500 line-through">${product.price?.toFixed(2)}</p>
                     )}
-
                     {product.discount > 0 && (
                       <span className="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">
                         {product.discount}% OFF
@@ -146,14 +135,12 @@ export default function ProductDetail() {
                     )}
                   </div>
                 </div>
-
                 <div className="mt-6">
                   <h3 className="text-sm font-medium text-gray-900">Description</h3>
                   <div className="mt-2 text-sm text-gray-500 space-y-2">
                     <p>{product.description || "No description available."}</p>
                   </div>
                 </div>
-
                 <div className="mt-6">
                   <div className="flex items-center">
                     <label htmlFor="quantity" className="mr-3 text-sm font-medium text-gray-700">
@@ -164,13 +151,16 @@ export default function ProductDetail() {
                       name="quantity"
                       type="number"
                       min="1"
+                      max={product.quantity || 1}
                       value={quantity}
                       onChange={handleQuantityChange}
                       className="shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm border-gray-300 rounded-md w-16"
                     />
+                    <span className="ml-2 text-xs text-gray-500">
+                      {typeof product.quantity === 'number' ? `In stock: ${product.quantity}` : "Out of stock"}
+                    </span>
                   </div>
                 </div>
-
                 <div className="mt-6">
                   <button
                     onClick={handleAddToCart}
@@ -183,19 +173,9 @@ export default function ProductDetail() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="text-center py-10">
-              <p className="text-gray-500">Product not found.</p>
-              <button
-                onClick={() => router.push("/")}
-                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              >
-                Back to Products
-              </button>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </Layout>
   )
 }

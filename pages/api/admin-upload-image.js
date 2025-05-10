@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+const supabaseService = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
+const supabaseAnon = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
+
+console.log('SUPABASE ANON KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export const config = {
   api: {
@@ -25,7 +31,7 @@ export default async function handler(req, res) {
 
   bb.on('file', (fieldname, file, filename, encoding, mimetype) => {
     fileUploaded = true;
-    let safeFilename = filename;
+    let safeFilename = filename || `upload.jpg`;
     if (typeof filename === 'object' && filename !== null) {
       safeFilename = filename.originalname || 'upload.jpg';
     }
@@ -34,17 +40,33 @@ export default async function handler(req, res) {
     file.on('data', (data) => chunks.push(data));
     file.on('end', async () => {
       const buffer = Buffer.concat(chunks);
-      const { error } = await supabase.storage.from('products').upload(filePath, buffer, {
-        contentType: mimetype || file.mimetype || 'image/jpeg',
+      const contentType = mimetype || 'image/jpeg';
+      const { data: uploadData, error: uploadErrorObj } = await supabaseService.storage.from('products').upload(filePath, buffer, {
+        contentType,
         upsert: true,
       });
-      if (error) {
-        uploadError = error.message;
+      console.log('Upload attempt:', { filePath, mimetype, contentType, uploadData, uploadErrorObj });
+      if (uploadErrorObj) {
+        uploadError = uploadErrorObj.message;
       } else {
-        const { publicURL: url } = supabase.storage.from('products').getPublicUrl(filePath);
+        const { data: listData, error: listError } = await supabaseService.storage.from('products').list('', { limit: 100 });
+        console.log('Bucket file list after upload:', { listData, listError });
+        // Use anon client for public URL
+        let url, urlError;
+        const publicUrlResult = supabaseAnon.storage.from('products').getPublicUrl(filePath);
+        url = publicUrlResult.publicURL;
+        urlError = publicUrlResult.error;
+        console.log('Public URL generation:', { filePath, url, urlError });
+        // Fallback: construct the public URL manually if getPublicUrl fails
+        if (!url) {
+          const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('https://')[1]?.split('.')[0];
+          if (projectRef) {
+            url = `https://${projectRef}.supabase.co/storage/v1/object/public/products/${filePath}`;
+            console.log('Manual public URL fallback:', url);
+          }
+        }
         publicURL = url;
       }
-      // End the response here, since we only support one file per request
       if (uploadError) {
         return res.status(500).json({ error: uploadError });
       }

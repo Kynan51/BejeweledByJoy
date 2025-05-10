@@ -80,14 +80,14 @@ export default function ProductCard({ product, trackView = true }) {
       onClick={handleClick}
     >
       <div className="relative">
-        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200">
+        <div className="relative aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200">
           {mainImage && mainImage !== 'null' && mainImage !== 'undefined' ? (
             <Image
               src={mainImage}
               alt={product.name}
               fill
               style={{ objectFit: "cover" }}
-              className="h-40 w-full object-center rounded-md"
+              className="object-center object-cover"
             />
           ) : null}
         </div>

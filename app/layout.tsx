@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import CartTrolley from "../components/CartTrolley";
+import WhatsAppButton from "../components/WhatsAppButton";
 
 export const metadata: Metadata = {
   title: 'BejeweledByJoy',
   description: 'BejeweledByJoy - Exquisite jewelry for every occasion',
-  generator: 'v0.dev',
+  generator: 'Primal Code',
 }
 
 export default function RootLayout({
@@ -14,7 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <CartTrolley />
+        <WhatsAppButton />
+      </body>
     </html>
   )
 }

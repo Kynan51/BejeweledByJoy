@@ -57,8 +57,7 @@ export default function Register() {
 
         setMessage(
           <span>
-            Registration successful! Please check your email (inbox or spam) for a confirmation link.<br />
-            <Link href="/login" className="text-purple-600 underline">Go to Login</Link>
+            Registration successful!
           </span>
         )
 
@@ -69,10 +68,10 @@ export default function Register() {
         setFullName("")
         setPhone("")
 
-        // Redirect to login after a delay
+        // Redirect to registration success page after a short delay
         setTimeout(() => {
-          router.push("/login")
-        }, 2000)
+          router.push("/registration-success")
+        }, 200)
       }
     } catch (error) {
       console.error("Error registering:", error)

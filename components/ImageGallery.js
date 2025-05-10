@@ -26,6 +26,7 @@ export default function ImageGallery({ images = [] }) {
           fill
           style={{ objectFit: "cover" }}
           className="w-full h-full object-center object-cover"
+          priority // Add priority for LCP image
         />
       </div>
 

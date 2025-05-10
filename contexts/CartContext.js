@@ -78,6 +78,7 @@ export function CartProvider({ children }) {
       }
 
       // Get cart items
+      if (!userCart || !userCart.id) return; // Prevent invalid queries
       const { data: cartItems, error: itemsError } = await supabase
         .from("cart_items")
         .select(
@@ -99,21 +100,24 @@ export function CartProvider({ children }) {
       if (itemsError) throw itemsError
 
       // Format cart items
-      const formattedCart = cartItems.map((item) => {
-        const discountedPrice =
-          item.products.discount > 0
-            ? item.products.price - item.products.price * (item.products.discount / 100)
-            : item.products.price
+      const formattedCart = (cartItems || []).map((item) => {
+        // Defensive: skip null or malformed items
+        if (!item || !item.products) return null;
+        const price = typeof item.products.price === 'number' ? item.products.price : 0;
+        const discount = typeof item.products.discount === 'number' ? item.products.discount : 0;
+        const discountedPrice = discount > 0
+          ? price - price * (discount / 100)
+          : price;
 
         return {
           id: item.id,
           product_id: item.product_id,
           name: item.products.name,
           price: discountedPrice,
-          image: item.products.image_urls && item.products.image_urls.length > 0 ? item.products.image_urls[0] : null,
+          image: Array.isArray(item.products.image_urls) && item.products.image_urls.length > 0 ? item.products.image_urls[0] : null,
           quantity: item.quantity,
-        }
-      })
+        };
+      }).filter(Boolean); // Remove any nulls from the array
 
       setCart(formattedCart)
 
@@ -132,8 +136,14 @@ export function CartProvider({ children }) {
   async function mergeLocalCartWithDatabase(localCart, cartId) {
     try {
       for (const item of localCart) {
+        if (!cartId || !item.id) continue; // Prevent invalid queries
         // Check if product already exists in cart
-        const existingItem = cart.find((cartItem) => cartItem.product_id === item.id)
+        const { data: existingItem } = await supabase
+          .from("cart_items")
+          .select("id, quantity")
+          .eq("cart_id", cartId)
+          .eq("product_id", item.id)
+          .single();
 
         if (existingItem) {
           // Update quantity if product already exists
@@ -175,21 +185,24 @@ export function CartProvider({ children }) {
       if (itemsError) throw itemsError
 
       // Format cart items
-      const formattedCart = cartItems.map((item) => {
-        const discountedPrice =
-          item.products.discount > 0
-            ? item.products.price - item.products.price * (item.products.discount / 100)
-            : item.products.price
+      const formattedCart = (cartItems || []).map((item) => {
+        // Defensive: skip null or malformed items
+        if (!item || !item.products) return null;
+        const price = typeof item.products.price === 'number' ? item.products.price : 0;
+        const discount = typeof item.products.discount === 'number' ? item.products.discount : 0;
+        const discountedPrice = discount > 0
+          ? price - price * (discount / 100)
+          : price;
 
         return {
           id: item.id,
           product_id: item.product_id,
           name: item.products.name,
           price: discountedPrice,
-          image: item.products.image_urls && item.products.image_urls.length > 0 ? item.products.image_urls[0] : null,
+          image: Array.isArray(item.products.image_urls) && item.products.image_urls.length > 0 ? item.products.image_urls[0] : null,
           quantity: item.quantity,
-        }
-      })
+        };
+      }).filter(Boolean); // Remove any nulls from the array
 
       setCart(formattedCart)
     } catch (error) {

@@ -13,7 +13,7 @@ export default function WishlistButton({ productId }) {
     let ignore = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!ignore) setSession(session)
-      if (session) {
+      if (session && productId) {
         checkIfInWishlist(session.user.id, productId)
       } else {
         setLoading(false)
@@ -23,7 +23,7 @@ export default function WishlistButton({ productId }) {
     // Listen for auth changes (Supabase v2+)
     const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) {
+      if (session && productId) {
         checkIfInWishlist(session.user.id, productId)
       } else {
         setLoading(false)
@@ -37,6 +37,7 @@ export default function WishlistButton({ productId }) {
   }, [productId])
 
   async function checkIfInWishlist(userId, productId) {
+    if (!userId || !productId) return; // Prevent invalid queries
     try {
       setLoading(true)
 

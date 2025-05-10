@@ -159,47 +159,45 @@ export default function AdminProducts() {
   }
 
   const handleImageUpload = async (e) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    setIsUploading(true)
-    setFormError(null)
+    setIsUploading(true);
+    setFormError(null);
 
     try {
-      const newUploadedImages = [...uploadedImages]
+      // Always start fresh, do not accumulate
+      const newUploadedImages = [];
 
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+        const file = files[i];
 
         // Check file type
         if (!file.type.startsWith("image/")) {
-          setFormError("Only image files are allowed.")
-          continue
+          setFormError("Only image files are allowed.");
+          continue;
         }
 
         // Check file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-          setFormError("Image size should be less than 5MB.")
-          continue
+          setFormError("Image size should be less than 5MB.");
+          continue;
         }
 
         // Create a temporary URL for preview
-        const previewUrl = URL.createObjectURL(file)
+        const previewUrl = URL.createObjectURL(file);
 
-        newUploadedImages.push({
-          file,
-          previewUrl,
-        })
+        newUploadedImages.push({ file, previewUrl });
       }
 
-      setUploadedImages(newUploadedImages)
+      setUploadedImages(newUploadedImages);
     } catch (error) {
-      console.error("Error handling image upload:", error)
-      setFormError("Error uploading images. Please try again.")
+      console.error("Error handling image upload:", error);
+      setFormError("Error uploading images. Please try again.");
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
-  }
+  };
 
   const removeUploadedImage = (index) => {
     const newUploadedImages = [...uploadedImages]
@@ -232,47 +230,44 @@ export default function AdminProducts() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setFormError(null)
-    console.log('Submitting product:', currentProduct)
+    e.preventDefault();
+    setFormError(null);
+    console.log("Submitting product:", currentProduct);
 
     // Validate form
     if (!currentProduct.name.trim()) {
-      setFormError("Product name is required.")
-      return
+      setFormError("Product name is required.");
+      return;
     }
 
     if (!currentProduct.price || Number.parseFloat(currentProduct.price) <= 0) {
-      setFormError("Valid price is required.")
-      return
+      setFormError("Valid price is required.");
+      return;
     }
 
     try {
-      setIsUploading(true)
+      setIsUploading(true);
 
-      // Upload new images to server
-      const newImageUrls = []
-
-      if (uploadedImages.length > 0) {
-        for (const uploadedImage of uploadedImages) {
+      // Upload new images to server in parallel
+      const newImageUrls = await Promise.all(
+        uploadedImages.map(async (uploadedImage) => {
           const file = uploadedImage.file;
           const url = await uploadImageToServer(file, currentProduct.id);
-          console.log('Image upload result:', url, 'for file:', file);
-          newImageUrls.push(url);
-        }
-      }
+          console.log("Image upload result:", url, "for file:", file);
+          return url;
+        })
+      );
 
       // Combine existing and new image URLs
-      // Only keep non-null, non-empty, non-'null', non-'undefined' URLs
       const allImageUrls = [
         ...(currentProduct.image_urls || []).filter(
-          (url) => url && url !== 'null' && url !== 'undefined'
+          (url) => url && url !== "null" && url !== "undefined"
         ),
         ...newImageUrls.filter(
-          (url) => url && url !== 'null' && url !== 'undefined'
-        )
+          (url) => url && url !== "null" && url !== "undefined"
+        ),
       ];
-      console.log('allImageUrls to be saved:', allImageUrls)
+      console.log("allImageUrls to be saved:", allImageUrls);
 
       // Prepare product data
       const productData = {
@@ -282,46 +277,44 @@ export default function AdminProducts() {
         discount: Number.parseInt(currentProduct.discount) || 0,
         image_urls: allImageUrls,
         quantity: Number.parseInt(currentProduct.quantity) || 0, // Include quantity
-      }
+      };
 
-      console.log('Sending productData to API:', productData)
+      console.log("Sending productData to API:", productData);
 
-      let res, result
+      let res, result;
 
       if (currentProduct.id) {
         // Update existing product via secure API route
-        res = await fetch('/api/admin-update-product', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: currentProduct.id, ...productData })
+        res = await fetch("/api/admin-update-product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: currentProduct.id, ...productData }),
         });
         result = await res.json();
-        console.log('Update product API response:', result)
-        if (!res.ok) throw new Error(result.error || 'Error updating product');
+        console.log("Update product API response:", result);
+        if (!res.ok) throw new Error(result.error || "Error updating product");
       } else {
         // Add new product via secure API route
-        res = await fetch('/api/admin-add-product', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(productData)
+        res = await fetch("/api/admin-add-product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
         });
         result = await res.json();
-        console.log('Add product API response:', result)
-        if (!res.ok) throw new Error(result.error || 'Error adding product');
+        console.log("Add product API response:", result);
+        if (!res.ok) throw new Error(result.error || "Error adding product");
       }
 
-      // Refresh products list
-      await fetchProducts()
-
-      // Close modal
-      closeModal()
+      // Refresh product list
+      fetchProducts();
+      closeModal();
     } catch (error) {
-      console.error("Error saving product:", error)
-      setFormError(error.message || "Error saving product. Please try again.")
+      console.error("Error submitting product:", error);
+      setFormError("Error saving product. Please try again.");
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
-  }
+  };
 
   const handleDeleteProduct = async (productId) => {
     if (!confirm("Are you sure you want to delete this product?")) {
@@ -443,14 +436,14 @@ export default function AdminProducts() {
                           <tr key={product.id}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="h-10 w-10 flex-shrink-0">
+                                <div className="relative w-10 h-10 flex-shrink-0">
                                   {product.image_urls && product.image_urls.length > 0 && product.image_urls[0] ? (
                                     <Image
                                       src={product.image_urls[0]}
                                       alt={product.name}
                                       fill
                                       style={{ objectFit: "cover" }}
-                                      className="w-full h-full object-center object-cover"
+                                      className="rounded object-center object-cover"
                                     />
                                   ) : (
                                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
