@@ -82,36 +82,31 @@ export default function AdminAnalytics() {
       // Process views by day
       const viewsByDay = processViewsByDay(viewsByDayData, timeRange)
 
-      // Get top products
+      // Get top products (from view for performance)
       const { data: topProductsData, error: topProductsError } = await supabase
-        .from("views")
-        .select("product_id, count:product_id")
-        .gte("viewed_at", startDateStr)
-        .order("count", { ascending: false })
+        .from("top_viewed_products")
+        .select("product_id, view_count")
+        .order("view_count", { ascending: false })
         .limit(5)
 
       if (topProductsError) throw topProductsError
 
       // Get product details for top products
       let topProducts = []
-
       if (topProductsData.length > 0) {
         const productIds = topProductsData.map((item) => item.product_id)
-
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("id, name, price, discount, image_urls")
           .in("id", productIds)
-
         if (productsError) throw productsError
-
         // Combine view counts with product details
         topProducts = productsData
           .map((product) => {
             const viewData = topProductsData.find((item) => item.product_id === product.id)
             return {
               ...product,
-              view_count: viewData ? viewData.count : 0,
+              view_count: viewData ? viewData.view_count : 0,
             }
           })
           .sort((a, b) => b.view_count - a.view_count)
