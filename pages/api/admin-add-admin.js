@@ -26,6 +26,16 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Only the owner can add admins' });
   }
 
+  // Check if the email exists in the users table
+  const { data: userExists, error: userError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .single();
+  if (userError || !userExists) {
+    return res.status(400).json({ error: 'This email is not a registered user.' });
+  }
+
   const { data, error } = await supabase
     .from('admins')
     .insert([{ email }])
@@ -33,6 +43,10 @@ export default async function handler(req, res) {
     .single();
 
   if (error) {
+    // Handle duplicate admin email error
+    if (error.code === '23505' || error.message?.includes('duplicate key value')) {
+      return res.status(400).json({ error: 'This user is already an admin.' });
+    }
     return res.status(500).json({ error: error.message });
   }
 

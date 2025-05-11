@@ -52,16 +52,15 @@ export default function AdminUsers() {
     setFormError(null);
     if (!newAdminEmail) return;
     try {
-      const { isOwner } = useAuth();
       if (!isOwner) throw new Error('Only the owner can add admins');
-      const { session } = useAuth();
+      if (!session?.user?.email) throw new Error('No session user email');
       const res = await fetch('/api/admin-add-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newAdminEmail, requesterEmail: session.user.email })
       });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      const addResult = await res.json();
+      if (addResult.error) throw new Error(addResult.error);
       setNewAdminEmail("");
       fetchAdmins();
     } catch (error) {
@@ -72,16 +71,15 @@ export default function AdminUsers() {
   async function handleRemoveAdmin(adminId) {
     setFormError(null);
     try {
-      const { isOwner } = useAuth();
       if (!isOwner) throw new Error('Only the owner can remove admins');
-      const { session } = useAuth();
+      if (!session?.user?.email) throw new Error('No session user email');
       const res = await fetch('/api/admin-remove-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: adminId, requesterEmail: session.user.email })
       });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      const removeResult = await res.json();
+      if (removeResult.error) throw new Error(removeResult.error);
       fetchAdmins();
     } catch (error) {
       setFormError(error.message);
