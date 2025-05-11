@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import supabase from "../utils/supabaseClient"
+import { useAuth } from "../contexts/AuthContext"
 
 function useDebounce(fn, delay) {
   const timeoutRef = useRef();
@@ -14,55 +15,39 @@ function useDebounce(fn, delay) {
 export default function WishlistButton({ productId }) {
   const [isInWishlist, setIsInWishlist] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [session, setSession] = useState(null)
+  const { session } = useAuth() // Use global auth context
 
   useEffect(() => {
-    // Get current session (Supabase v2+)
-    let ignore = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!ignore) setSession(session)
-      if (session && productId) {
-        checkIfInWishlist(session.user.id, productId)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes (Supabase v2+)
-    const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      if (session && productId) {
-        checkIfInWishlist(session.user.id, productId)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    return () => {
-      ignore = true;
-      subscription?.unsubscribe?.()
+    // Debug: Log session and productId on mount
+    console.log('[WishlistButton] session:', session, 'productId:', productId)
+    if (session && productId) {
+      checkIfInWishlist(session.user.id, productId)
+    } else {
+      setIsInWishlist(false) // Always reset if not logged in
+      setLoading(false)
     }
-  }, [productId])
+  }, [session, productId])
 
   async function checkIfInWishlist(userId, productId) {
     if (!userId || !productId) return; // Prevent invalid queries
     try {
       setLoading(true)
-
+      // Debug: Log userId and productId for wishlist check
+      console.log('[WishlistButton] checkIfInWishlist userId:', userId, 'productId:', productId)
       const { data, error } = await supabase
         .from("wishlists")
         .select("id")
         .eq("user_id", userId)
         .eq("product_id", productId)
-        .single()
-
+        .maybeSingle(); // Use maybeSingle to avoid throwing if not found
+      console.log('[WishlistButton] Supabase wishlist data:', data, 'error:', error)
       if (error && error.code !== "PGRST116") {
         throw error
       }
-
       setIsInWishlist(!!data)
     } catch (error) {
-      console.error("Error checking wishlist:", error)
+      console.log('[WishlistButton] Error checking wishlist:', error)
+      setIsInWishlist(false)
     } finally {
       setLoading(false)
     }
@@ -103,7 +88,8 @@ export default function WishlistButton({ productId }) {
         setIsInWishlist(true)
       }
     } catch (error) {
-      console.error("Error toggling wishlist:", error)
+      // Only log this error for debugging wishlist toggle
+      console.log('[WishlistButton] Error toggling wishlist:', error)
     } finally {
       setLoading(false)
     }
