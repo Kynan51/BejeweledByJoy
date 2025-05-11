@@ -80,6 +80,9 @@ export default function Layout({ children }) {
                   <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">My Profile</span>
                 </Link>
               )}
+              <Link href="/about">
+                <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">About Us</span>
+              </Link>
               {session ? (
                 <button onClick={handleSignOut} className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign Out</button>
               ) : (
@@ -115,6 +118,9 @@ export default function Layout({ children }) {
                       <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">My Profile</span>
                     </Link>
                   )}
+                  <Link href="/about">
+                    <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">About Us</span>
+                  </Link>
                   {session ? (
                     <button onClick={handleSignOut} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign Out</button>
                   ) : (
