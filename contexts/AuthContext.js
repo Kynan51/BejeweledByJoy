@@ -67,13 +67,21 @@ export function AuthProvider({ children }) {
     }
     // Always check DB on login/session change
     if (forceDb) {
-      const { data: adminData, error } = await supabase.from("admins").select("*").eq("email", user.email).single();
+      let adminData = null;
+      let error = null;
+      try {
+        const res = await supabase.from("admins").select("*").eq("email", user.email).single();
+        adminData = res.data;
+        error = res.error;
+      } catch (e) {
+        error = e;
+      }
       console.log('[AuthContext] Supabase adminData:', adminData);
       if (error) {
         console.log('[AuthContext] Error fetching admin role from DB:', error);
       }
-      if (adminData) {
-        // Handle both array and object results
+      // Fix: Only set admin/owner if adminData is a valid object and not an empty array
+      if (adminData && !(Array.isArray(adminData) && adminData.length === 0)) {
         const adminObj = Array.isArray(adminData) ? adminData[0] : adminData;
         const role = adminObj?.is_owner ? 'owner' : 'admin';
         setRole(role);
@@ -87,12 +95,14 @@ export function AuthProvider({ children }) {
         return 'user';
       }
     }
-    // Otherwise, use cache if valid
+    // Otherwise, use cache if valid, but only if not forceDb
     const cache = getRoleCache();
-    if (cache && cache.email === user.email) {
-      setRole(cache.role);
-      console.log('[AuthContext] Used cached role from localStorage:', cache);
-      return cache.role;
+    if (cache && cache.email === user.email && (cache.role === 'admin' || cache.role === 'owner')) {
+      // Double-check with DB if cache says admin/owner, to avoid stale elevation
+      return await checkAdminOrOwner(user, true);
+    } else if (cache && cache.email === user.email && cache.role === 'user') {
+      setRole('user');
+      return 'user';
     }
     // Fallback to DB if cache is missing or invalid
     return await checkAdminOrOwner(user, true);
@@ -126,8 +136,7 @@ export function AuthProvider({ children }) {
         setRole('user');
         setLoading(false);
         console.log('[AuthContext] Signed out, cleared role');
-      } else {
-        // Always force DB check on login/session change
+      } else if (_event === 'SIGNED_IN') {
         await checkAdminOrOwner(session?.user, true);
         setLoading(false);
         console.log('[AuthContext] Listener set session/roles:', {
@@ -136,6 +145,9 @@ export function AuthProvider({ children }) {
           isOwner,
           loading: false
         });
+      } else {
+        // For other events, just update session and loading
+        setLoading(false);
       }
     });
     return () => {

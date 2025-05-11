@@ -353,8 +353,11 @@ export default function Profile() {
   }
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push("/")
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userRoleCache');
+    }
+    router.push("/");
   }
 
   // Only redirect if not logged in

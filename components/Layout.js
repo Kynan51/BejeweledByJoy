@@ -22,11 +22,17 @@ export default function Layout({ children }) {
   async function handleSignOut() {
     await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('userRole');
+      localStorage.removeItem('userRoleCache');
     }
-    // Optionally, you can also clear session in AuthContext if needed
-    // window.location.replace("/");
-    window.location.reload(); // Force full reload to reset all state
+    // Wait for session to be cleared before redirecting
+    let tries = 0;
+    while (tries < 10) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) break;
+      await new Promise(res => setTimeout(res, 100));
+      tries++;
+    }
+    router.push('/login');
   }
 
   return (
@@ -128,10 +134,8 @@ export default function Layout({ children }) {
           </div>
         )}
       </header>
-      {/* Only show admin tabs on /admin pages and for admins/owners */}
-      {(isAdmin || isOwner) && pathname.startsWith("/admin") && (
-        <AdminTabsNav isAdmin={isAdmin} isOwner={isOwner} />
-      )}
+      {/* Remove the bar below the header for mobile view */}
+      {/* (Navigation bar removed as requested) */}
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</div>
       </main>

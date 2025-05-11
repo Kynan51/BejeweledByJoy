@@ -17,7 +17,7 @@ export default function ProductCard({ product, trackView = true }) {
   const mainImage =
     product.image_urls && product.image_urls.length > 0 && product.image_urls[0]
       ? product.image_urls[0]
-      : "/placeholder-jewelry.jpg"
+      : "/placeholder.jpg"
 
   const handleClick = async () => {
     if (trackView) {

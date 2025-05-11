@@ -5,14 +5,12 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminNav from "../../components/AdminNav"
-import { DashboardTabs } from "../../components/AdminTabsNav"
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
 
 export default function AdminDashboard() {
   const { session, loading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState("overview");
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalViews: 0,
@@ -56,7 +54,6 @@ export default function AdminDashboard() {
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4">
-            {(isAdmin || isOwner) && <DashboardTabs isAdmin={isAdmin} />}
             <div className="flex-1">
               {router.pathname === "/admin" && (
                 loading ? (
