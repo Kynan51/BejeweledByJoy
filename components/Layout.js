@@ -150,6 +150,12 @@ export default function Layout({ children }) {
           <p className="text-center text-gray-500 text-sm">
             &copy; {new Date().getFullYear()} BejeweledByJoy. All rights reserved.
           </p>
+          <div className="mt-2 text-center text-gray-600 text-sm">
+            <span>Contact us: </span>
+            <a href="mailto:info@bejewelbyjoy.com" className="text-purple-700 hover:underline">info@bejewelbyjoy.com</a>
+            <span className="mx-2">|</span>
+            <a href="tel:+254712345678" className="text-purple-700 hover:underline">+254712345678</a>
+          </div>
         </div>
       </footer>
       <WhatsAppButton />
