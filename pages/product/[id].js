@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import Layout from "../../components/Layout"
@@ -8,59 +8,47 @@ import ImageGallery from "../../components/ImageGallery"
 import WishlistButton from "../../components/WishlistButton"
 import { useCart } from "../../contexts/CartContext"
 import supabase from "../../utils/supabaseClient"
+import useSWR from "swr"
+import { MoonLoader } from "react-spinners"
+
+const fetcher = async (id) => {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, price, discount, image_urls, description, quantity")
+    .eq("id", id);
+  if (error) throw error;
+  // Always return a single product object, not an array
+  let product = null;
+  if (Array.isArray(data) && data.length > 0) {
+    product = data[0];
+  } else if (data && typeof data === 'object') {
+    product = data;
+  }
+  if (!product) return null;
+  if (!product.image_urls || !Array.isArray(product.image_urls) || product.image_urls.length === 0) {
+    product.image_urls = ["/placeholder.jpg"];
+  }
+  if (typeof window !== 'undefined') {
+    console.log('[ProductDetail] Normalized product:', product);
+  }
+  return product;
+};
 
 export default function ProductDetail() {
   const router = useRouter()
   const { id } = router.query
   const { addToCart } = useCart()
 
-  const [product, setProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
 
-  useEffect(() => {
-    async function fetchProduct() {
-      if (!id) return;
-      try {
-        setLoading(true);
-        // Fetch product details
-        const { data, error } = await supabase.from("products").select("*").eq("id", id);
-        const product = Array.isArray(data) ? data[0] : data;
-        console.log("[ProductDetail] Fetched product:", product, "error:", error, "id:", id);
-        if (error) {
-          setError(error.message || "Error fetching product");
-          setProduct(null);
-          return;
-        }
-        if (!product) {
-          setError("Product not found");
-          setProduct(null);
-          return;
-        }
-        // Fallback: if image_urls is missing or empty, use placeholder
-        if (!product.image_urls || !Array.isArray(product.image_urls) || product.image_urls.length === 0) {
-          product.image_urls = ["/placeholder.jpg"];
-        }
-        setProduct(product);
-        // Track product view for analytics
-        await supabase.from("views").insert([
-          {
-            product_id: id,
-            user_agent: navigator.userAgent,
-            user_id: (await supabase.auth.getSession()).data.session?.user?.id || null,
-          },
-        ]);
-      } catch (error) {
-        console.error("[ProductDetail] Error fetching product:", error);
-        setError("Failed to load product details. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProduct();
-  }, [id])
+  // Only fetch when id is a non-empty string and router.isReady is true
+  const shouldFetch = router.isReady && typeof id === 'string' && id.length > 0;
+  const { data: product, error, isLoading } = useSWR(
+    shouldFetch ? ["product", id] : null,
+    () => fetcher(id),
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
 
   const handleQuantityChange = (e) => {
     const value = Number.parseInt(e.target.value)
@@ -96,10 +84,12 @@ export default function ProductDetail() {
           content={product ? `${product.description?.substring(0, 160)}` : "View our beautiful BejeweledByJoy piece details"}
         />
       </Head>
-      {loading ? (
-        <div className="flex justify-center items-center h-96">Loading...</div>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-96">
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
       ) : error ? (
-        <div className="flex justify-center items-center h-96 text-red-500">{error}</div>
+        <div className="flex justify-center items-center h-96 text-red-500">{error.message || "Error fetching product"}</div>
       ) : !product ? (
         <div className="text-center py-10">
           <p className="text-gray-500">Product not found.</p>
@@ -118,7 +108,7 @@ export default function ProductDetail() {
                 <div className="absolute top-4 right-4 z-10">
                   <WishlistButton productId={product.id} />
                 </div>
-                <ImageGallery images={product?.image_urls || ["/placeholder.jpg"]} />
+                <ImageGallery images={product?.image_urls || ["/placeholder.jpg"]} lazyLoad />
               </div>
               <div className="mt-6 md:mt-0 md:ml-10 md:w-1/2">
                 <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{product.name}</h1>
@@ -177,5 +167,5 @@ export default function ProductDetail() {
         </div>
       )}
     </Layout>
-  )
+  );
 }

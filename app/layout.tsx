@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import CartTrolley from "../components/CartTrolley";
 import WhatsAppButton from "../components/WhatsAppButton";
+import { AuthProvider } from "../contexts/AuthContext";
+import { CartProvider } from "../contexts/CartContext";
 
 export const metadata: Metadata = {
   title: 'BejeweledByJoy',
@@ -17,9 +19,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <CartTrolley />
-        <WhatsAppButton />
+        <AuthProvider>
+          <CartProvider>
+            {children}
+            <CartTrolley />
+            <WhatsAppButton />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   )

@@ -1,6 +1,7 @@
 import "../styles/globals.css"
 import Head from "next/head"
 import { CartProvider } from "../contexts/CartContext"
+import { AuthProvider } from "../contexts/AuthContext"
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -11,9 +12,11 @@ function MyApp({ Component, pageProps }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <CartProvider>
-        <Component {...pageProps} />
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <Component {...pageProps} />
+        </CartProvider>
+      </AuthProvider>
     </>
   )
 }

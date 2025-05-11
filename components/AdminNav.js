@@ -1,16 +1,34 @@
 "use client"
 
+// Fix: Use correct router import for app/pages directory
+import { usePathname, useRouter as useAppRouter } from "next/navigation"
+import { useRouter as usePagesRouter } from "next/router"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import PropTypes from "prop-types"
 
-export default function AdminNav() {
-  const router = useRouter()
+function getRouter() {
+  // If window is defined and pathname is available, use app router
+  if (typeof window !== "undefined" && usePathname) {
+    try {
+      return useAppRouter();
+    } catch {
+      // fallback
+    }
+  }
+  // fallback to pages router
+  return usePagesRouter();
+}
+
+export default function AdminNav({ isAdmin }) {
+  const router = getRouter();
 
   const isActive = (path) => {
-    return router.pathname === path
+    return (router.pathname || router.asPath) === path
       ? "bg-purple-100 text-purple-700"
-      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-  }
+      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900";
+  };
+
+  if (!isAdmin) return null;
 
   return (
     <nav className="space-y-1 mb-6">
@@ -83,5 +101,7 @@ export default function AdminNav() {
         Manage Admins
       </Link>
     </nav>
-  )
+  );
 }
+
+AdminNav.propTypes = { isAdmin: PropTypes.bool }

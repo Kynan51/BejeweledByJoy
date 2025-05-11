@@ -6,74 +6,44 @@ import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminNav from "../../components/AdminNav"
 import supabase from "../../utils/supabaseClient"
+import { useAuth } from "../../contexts/AuthContext"
+import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
 
 export default function AdminAnalytics() {
-  const router = useRouter()
-  const [session, setSession] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { session, loading } = useAuth();
+  const router = useRouter();
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
     viewsByDay: [],
     topProducts: [],
     viewsByDevice: [],
+    topSalesProducts: [],
   })
-  const [timeRange, setTimeRange] = useState("week") // 'week', 'month', 'year'
+  const [timeRange, setTimeRange] = useState("week")
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true)
 
+  // Client-side role check
+  const userEmail = session?.user?.email || null;
+  const role = userEmail ? getUserRole(userEmail) : null;
+  const isAdmin = userEmail ? isAdminRole(userEmail) : false;
+  const isOwner = userEmail ? isOwnerRole(userEmail) : false;
+
+  // Redirect unauthorized users
   useEffect(() => {
-    // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-
-      // Check if user is admin
-      if (session?.user) {
-        checkIfAdmin(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (session?.user) {
-        checkIfAdmin(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    return () => {
-      authListener?.subscription?.unsubscribe()
+    if (!loading && !isAdmin && !isOwner) {
+      router.replace("/");
     }
-  }, [router])
+  }, [loading, isAdmin, isOwner]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin || isOwner) {
       fetchAnalytics()
     }
-  }, [isAdmin, timeRange])
-
-  async function checkIfAdmin(email) {
-    if (!email) return
-
-    try {
-      const { data, error } = await supabase.from("admins").select("*").eq("email", email).single()
-
-      if (data && !error) {
-        setIsAdmin(true)
-      } else {
-        router.push("/auth")
-      }
-    } catch (error) {
-      console.error("Error checking admin status:", error)
-      router.push("/auth")
-    }
-  }
+  }, [isAdmin, isOwner, timeRange])
 
   async function fetchAnalytics() {
     try {
-      setLoading(true)
+      setLoadingAnalytics(true)
 
       // Calculate date range
       const now = new Date()
@@ -115,9 +85,8 @@ export default function AdminAnalytics() {
       // Get top products
       const { data: topProductsData, error: topProductsError } = await supabase
         .from("views")
-        .select("product_id, count(*)")
+        .select("product_id, count:product_id")
         .gte("viewed_at", startDateStr)
-        .group("product_id")
         .order("count", { ascending: false })
         .limit(5)
 
@@ -159,16 +128,47 @@ export default function AdminAnalytics() {
       // Process views by device
       const viewsByDevice = processViewsByDevice(viewsByDeviceData)
 
+      // Get top products by sales
+      const { data: topSalesData, error: topSalesError } = await supabase
+        .from("order_items")
+        .select("product_id, sum:quantity")
+        .gte("created_at", startDateStr)
+        .order("sum", { ascending: false })
+        .limit(5)
+
+      if (topSalesError) throw topSalesError
+
+      // Get product details for top sales
+      let topSalesProducts = []
+      if (topSalesData.length > 0) {
+        const productIds = topSalesData.map((item) => item.product_id)
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("id, name, price, discount, image_urls")
+          .in("id", productIds)
+        if (productsError) throw productsError
+        topSalesProducts = productsData
+          .map((product) => {
+            const salesData = topSalesData.find((item) => item.product_id === product.id)
+            return {
+              ...product,
+              sales_count: salesData ? salesData.sum : 0,
+            }
+          })
+          .sort((a, b) => b.sales_count - a.sales_count)
+      }
+
       setAnalytics({
         totalViews: viewsData.length,
         viewsByDay,
         topProducts,
         viewsByDevice,
+        topSalesProducts,
       })
     } catch (error) {
       console.error("Error fetching analytics:", error)
     } finally {
-      setLoading(false)
+      setLoadingAnalytics(false)
     }
   }
 
@@ -241,11 +241,21 @@ export default function AdminAnalytics() {
       .sort((a, b) => b.count - a.count)
   }
 
-  if (!isAdmin) {
+  if (loading) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Checking authentication...</p>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (!(isAdmin || isOwner)) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">You are not authorized to view this page.</p>
         </div>
       </Layout>
     )
@@ -267,7 +277,7 @@ export default function AdminAnalytics() {
           <div className="py-4">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-64 md:mr-8">
-                <AdminNav />
+                <AdminNav isAdmin={isAdmin} />
               </div>
 
               <div className="flex-1">
@@ -305,7 +315,7 @@ export default function AdminAnalytics() {
                   </div>
                 </div>
 
-                {loading ? (
+                {loadingAnalytics ? (
                   <div className="animate-pulse">
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                       {[...Array(3)].map((_, index) => (
@@ -445,6 +455,38 @@ export default function AdminAnalytics() {
                         ) : (
                           <div className="text-center py-4 text-gray-500">
                             No product view data available for this time period.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-8 bg-white shadow rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
+                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Top Products by Sales</h3>
+                        {analytics.topSalesProducts && analytics.topSalesProducts.length > 0 ? (
+                          <ul className="divide-y divide-gray-200">
+                            {analytics.topSalesProducts.map((product) => (
+                              <li key={product.id} className="py-4">
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                                    <p className="text-sm text-gray-500 truncate">
+                                      Ksh{product.price.toFixed(2)}
+                                      {product.discount > 0 && (
+                                        <span className="ml-2 text-xs text-red-500">{product.discount}% OFF</span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div className="inline-flex items-center text-sm font-semibold text-green-600">
+                                    {product.sales_count} sold
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            No sales data available for this time period.
                           </div>
                         )}
                       </div>

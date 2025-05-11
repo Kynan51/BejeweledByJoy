@@ -5,54 +5,28 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import supabase from "../utils/supabaseClient"
 import WhatsAppButton from "./WhatsAppButton"
+import AdminTabsNav from "./AdminTabsNav"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function Layout({ children }) {
-  const [session, setSession] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { session, isAdmin, isOwner, loading } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const router = useRouter();
 
+  // Debug log for header state
   useEffect(() => {
-    // Get current session (new API)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-    })
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      if (session?.user) {
-        checkIfAdmin(session.user.email)
-      } else {
-        setIsAdmin(false)
-      }
-    })
-
-    // Check if current user is admin
-    if (session?.user) {
-      checkIfAdmin(session.user.email)
-    }
-
-    return () => {
-      authListener?.subscription?.unsubscribe()
-    }
-  }, [])
-
-  async function checkIfAdmin(email) {
-    if (!email) return
-
-    const { data, error } = await supabase.from("admins").select("*").eq("email", email).single()
-
-    if (data && !error) {
-      setIsAdmin(true)
-    } else {
-      setIsAdmin(false)
-    }
-  }
+    console.log('[Layout] Header state:', { session, isAdmin, isOwner, loading });
+  }, [session, isAdmin, isOwner, loading]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
-    setIsAdmin(false)
-    router.push("/")
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userRole');
+    }
+    // Optionally, you can also clear session in AuthContext if needed
+    // window.location.replace("/");
+    window.location.reload(); // Force full reload to reset all state
   }
 
   return (
@@ -63,14 +37,10 @@ export default function Layout({ children }) {
             <div className="flex items-center">
               <Link href="/">
                 <span className="flex-shrink-0 flex items-center">
-                  {/* Inline SVG for best rendering and readability */}
-                  
                   <img src="/picsvg.svg" alt="Logo" className="h-200 w-300" />
-
                 </span>
               </Link>
             </div>
-
             {/* Mobile menu button */}
             <div className="flex items-center md:hidden">
               <button
@@ -79,148 +49,92 @@ export default function Layout({ children }) {
               >
                 <span className="sr-only">Open main menu</span>
                 {isMenuOpen ? (
-                  <svg
-                    className="block h-6 w-6"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 ) : (
-                  <svg
-                    className="block h-6 w-6"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 )}
               </button>
             </div>
-
             {/* Desktop navigation */}
             <div className="hidden md:flex md:items-center md:space-x-4">
               <Link href="/">
-                <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                  Products
-                </span>
+                <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Products</span>
               </Link>
-
-              {isAdmin && (
-                <>
-                  <Link href="/admin">
-                    <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                      Dashboard
-                    </span>
-                  </Link>
-                </>
+              {session && (isAdmin || isOwner) && (
+                <Link href="/admin">
+                  <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Dashboard</span>
+                </Link>
               )}
-
+              {session && (
+                <Link href="/profile">
+                  <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">My Profile</span>
+                </Link>
+              )}
               {session ? (
-                <div className="flex items-center space-x-4">
-                  <Link href="/profile">
-                    <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                      My Profile
-                    </span>
-                  </Link>
-                  <button
-                    onClick={handleSignOut}
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
-                  >
-                    Sign Out
-                  </button>
-                </div>
+                <button onClick={handleSignOut} className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign Out</button>
               ) : (
-                <div className="flex items-center space-x-4">
+                <>
                   <Link href="/login">
-                    <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                      Sign In
-                    </span>
+                    <span className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign In</span>
                   </Link>
                   <Link href="/register">
-                    <span className="px-3 py-2 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-700">
-                      Register
-                    </span>
+                    <span className="px-3 py-2 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-700">Register</span>
                   </Link>
-                </div>
+                </>
               )}
             </div>
           </div>
         </div>
-
         {/* Mobile menu, show/hide based on menu state */}
-        <div className={`${isMenuOpen ? "block" : "hidden"} md:hidden`}>
-          <div className="px-2 pt-2 pb-3">
+        {isMenuOpen && (
+          <div className="fixed inset-0 z-40 flex md:hidden">
+            <div className="fixed inset-0 bg-black opacity-25" onClick={() => setIsMenuOpen(false)} />
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white shadow-xl">
+              <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
+                <nav className="space-y-1 mb-6">
+                  <Link href="/">
+                    <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Products</span>
+                  </Link>
+                  {session && (isAdmin || isOwner) && (
+                    <Link href="/admin">
+                      <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Dashboard</span>
+                    </Link>
+                  )}
+                  {session && (
+                    <Link href="/profile">
+                      <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">My Profile</span>
+                    </Link>
+                  )}
+                  {session ? (
+                    <button onClick={handleSignOut} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign Out</button>
+                  ) : (
+                    <>
+                      <Link href="/login">
+                        <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign In</span>
+                      </Link>
+                      <Link href="/register">
+                        <span className="block px-3 py-2 rounded-md text-base font-medium bg-purple-600 text-white hover:bg-purple-700">Register</span>
+                      </Link>
+                    </>
+                  )}
+                </nav>
+              </div>
+            </div>
+            <div className="flex-shrink-0 w-14" aria-hidden="true" />
           </div>
-          <div className="pt-2 pb-3 space-y-1">
-            <Link href="/">
-              <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                Products
-              </span>
-            </Link>
-
-            {isAdmin && (
-              <>
-                <Link href="/admin">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    Dashboard
-                  </span>
-                </Link>
-                <Link href="/admin/products">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    Manage Products
-                  </span>
-                </Link>
-                <Link href="/admin/analytics">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    Analytics
-                  </span>
-                </Link>
-              </>
-            )}
-
-            {session ? (
-              <>
-                <Link href="/profile">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    My Profile
-                  </span>
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    Sign In
-                  </span>
-                </Link>
-                <Link href="/register">
-                  <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
-                    Register
-                  </span>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
+        )}
       </header>
-
+      {/* Only show admin tabs on /admin pages and for admins/owners */}
+      {(isAdmin || isOwner) && pathname.startsWith("/admin") && (
+        <AdminTabsNav isAdmin={isAdmin} isOwner={isOwner} />
+      )}
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</div>
       </main>
-
       <footer className="bg-gray-100">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <p className="text-center text-gray-500 text-sm">
@@ -228,8 +142,7 @@ export default function Layout({ children }) {
           </p>
         </div>
       </footer>
-
       <WhatsAppButton />
     </div>
-  )
+  );
 }

@@ -1,7 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import supabase from "../utils/supabaseClient"
+
+function useDebounce(fn, delay) {
+  const timeoutRef = useRef();
+  return (...args) => {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => fn(...args), delay);
+  };
+}
 
 export default function WishlistButton({ productId }) {
   const [isInWishlist, setIsInWishlist] = useState(false)
@@ -101,9 +109,11 @@ export default function WishlistButton({ productId }) {
     }
   }
 
+  const debouncedToggleWishlist = useDebounce(toggleWishlist, 500);
+
   return (
     <button
-      onClick={toggleWishlist}
+      onClick={debouncedToggleWishlist}
       disabled={loading}
       className="flex items-center justify-center p-2 rounded-full bg-white shadow-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
       aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}

@@ -10,10 +10,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // TODO: Replace with real admin authentication logic
-  const { id } = req.body;
-  if (!id) {
-    return res.status(400).json({ error: 'Missing admin id' });
+  // Only allow the owner to remove admins
+  const { requesterEmail, id } = req.body;
+  if (!id || !requesterEmail) {
+    return res.status(400).json({ error: 'Missing admin id or requesterEmail' });
+  }
+
+  // Check if requester is owner
+  const { data: ownerData, error: ownerError } = await supabase
+    .from('admins')
+    .select('is_owner')
+    .eq('email', requesterEmail)
+    .single();
+  if (ownerError || !ownerData?.is_owner) {
+    return res.status(403).json({ error: 'Only the owner can remove admins' });
   }
 
   const { data, error } = await supabase

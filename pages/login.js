@@ -7,6 +7,7 @@ import Link from "next/link"
 import Layout from "../components/Layout"
 import supabase from "../utils/supabaseClient"
 import { MoonLoader } from "react-spinners"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -15,47 +16,83 @@ export default function Login() {
   const [error, setError] = useState(null)
   const [view, setView] = useState("sign-in") // 'sign-in' or 'forgot-password'
   const [emailResent, setEmailResent] = useState(false)
+  const [initialCheck, setInitialCheck] = useState(true)
 
   const router = useRouter()
   const { redirect } = router.query
+  const { refreshAuth, session, isAdmin, isOwner, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Only check for existing session on first mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.push(redirect || "/")
+        // Only redirect if not already on login page
+        if (router.pathname !== "/login") {
+          router.push(redirect || "/");
+        }
+      } else {
+        setInitialCheck(false);
       }
-    })
-  }, [redirect, router])
+    });
+    // eslint-disable-next-line
+  }, []);
+
+  // Redirect after login based on role
+  useEffect(() => {
+    if (!authLoading && session) {
+      if (isAdmin || isOwner) {
+        router.replace("/admin");
+      } else {
+        router.replace("/profile");
+      }
+    }
+  }, [authLoading, session, isAdmin, isOwner]);
+
+  // Redirect after login: if coming from /profile, go to /profile; else go to main page
+  useEffect(() => {
+    if (!authLoading && session) {
+      if (redirect === "/profile") {
+        router.replace("/profile");
+      } else {
+        router.replace("/");
+      }
+    }
+  }, [session, authLoading, redirect]);
+
+  // Prevent rendering login form until initial session check is done, but only block if not on login page
+  if (initialCheck && router.pathname !== "/login") {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      </Layout>
+    );
+  }
 
   const handleSignIn = async (e) => {
-    e.preventDefault()
-    console.log('Sign in button clicked', { email, password })
+    e.preventDefault();
+    console.log('[Login] Sign in button clicked', { email, password });
     try {
-      setLoading(true)
-      setError(null)
-      console.log('Attempting sign in with Supabase')
+      setLoading(true);
+      setError(null);
+      console.log('[Login] Attempting sign in with Supabase');
       const signInStart = Date.now();
-      let data, error;
-      try {
-        const result = await supabase.auth.signInWithPassword({ email, password });
-        data = result.data;
-        error = result.error;
-        console.log('signInWithPassword resolved', { data, error });
-      } catch (err) {
-        console.error('signInWithPassword threw', err);
-        throw err;
-      }
-      console.log('Sign in call duration (ms):', Date.now() - signInStart)
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      const session = result.data?.session;
+      const error = result.error;
+      console.log('[Login] Sign in response:', { session, error });
+
       if (error) {
-        throw error
+        throw error;
       }
-      setTimeout(() => {
-        console.log('Redirecting after sign in', { redirect })
-        router.push(redirect || "/")
-      }, 500)
+
+      // Refresh AuthContext session after login and wait for it to finish
+      await refreshAuth();
+      console.log('[Login] Sign in successful, session:', session);
+      // Do not reload or redirect here; let the useEffect handle it
     } catch (error) {
-      // Supabase rate limit error handling
+      console.error('[Login] Sign in error:', error);
       if (
         error?.message?.toLowerCase().includes("rate limit") ||
         error?.message?.toLowerCase().includes("too many requests") ||
@@ -63,15 +100,15 @@ export default function Login() {
       ) {
         setError(
           "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
-        )
+        );
       } else {
-        setError(error.message)
+        setError(error.message);
       }
     } finally {
-      setLoading(false)
-      console.log('Sign in process finished')
+      setLoading(false);
+      console.log('[Login] Sign in process finished');
     }
-  }
+  };
 
   const handleForgotPassword = async (e) => {
     e.preventDefault()

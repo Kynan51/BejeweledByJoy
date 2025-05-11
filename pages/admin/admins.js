@@ -5,59 +5,107 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminTabsNav from "../../components/AdminTabsNav"
-import supabase from "../../utils/supabaseClient"
+import { useAuth } from "../../contexts/AuthContext"
+import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
 
 export default function AdminUsers() {
-  const router = useRouter()
-  const [session, setSession] = useState(null)
-  const [isOwner, setIsOwner] = useState(false)
-  const [admins, setAdmins] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newAdminEmail, setNewAdminEmail] = useState("")
-  const [formError, setFormError] = useState(null)
+  const { session, loading } = useAuth();
+  const router = useRouter();
+  const [admins, setAdmins] = useState([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [formError, setFormError] = useState(null);
+
+  const userEmail = session?.user?.email || null;
+  const role = userEmail ? getUserRole(userEmail) : null;
+  const isAdmin = userEmail ? isAdminRole(userEmail) : false;
+  const isOwner = userEmail ? isOwnerRole(userEmail) : false;
 
   useEffect(() => {
-    // Get current session (Supabase v2+)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-
-      // Check if user is owner
-      if (session?.user) {
-        checkIfOwner(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    // Listen for auth changes (Supabase v2+)
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (session?.user) {
-        checkIfOwner(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    return () => {
-      authListener?.subscription?.unsubscribe()
+    if (!loading && !isAdmin && !isOwner) {
+      router.replace("/");
     }
-  }, [])
+  }, [loading, isAdmin, isOwner]);
 
-  const checkIfOwner = async (email) => {
+  useEffect(() => {
+    if (isAdmin || isOwner) {
+      fetchAdmins();
+    }
+  }, [isAdmin, isOwner]);
+
+  async function fetchAdmins() {
     try {
-      const { data, error } = await supabase
-        .from("owners")
-        .select("email")
-        .eq("email", email)
-
-      if (error) throw error
-
-      setIsOwner(data.length > 0)
+      setLoadingAdmins(true);
+      // Fetch all admins
+      const { data, error } = await fetch('/api/admin-list-admins').then(res => res.json());
+      if (error) throw new Error(error);
+      setAdmins(data || []);
     } catch (error) {
-      console.error("Error checking owner status:", error.message)
+      setFormError("Failed to fetch admins");
+    } finally {
+      setLoadingAdmins(false);
     }
+  }
+
+  async function handleAddAdmin() {
+    setFormError(null);
+    if (!newAdminEmail) return;
+    try {
+      const { isOwner } = useAuth();
+      if (!isOwner) throw new Error('Only the owner can add admins');
+      const { session } = useAuth();
+      const res = await fetch('/api/admin-add-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newAdminEmail, requesterEmail: session.user.email })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      setNewAdminEmail("");
+      fetchAdmins();
+    } catch (error) {
+      setFormError(error.message);
+    }
+  }
+
+  async function handleRemoveAdmin(adminId) {
+    setFormError(null);
+    try {
+      const { isOwner } = useAuth();
+      if (!isOwner) throw new Error('Only the owner can remove admins');
+      const { session } = useAuth();
+      const res = await fetch('/api/admin-remove-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: adminId, requesterEmail: session.user.email })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      fetchAdmins();
+    } catch (error) {
+      setFormError(error.message);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!(isAdmin || isOwner)) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">You are not authorized to view this page.</p>
+        </div>
+      </Layout>
+    );
   }
 
   return (
@@ -65,8 +113,47 @@ export default function AdminUsers() {
       <Head>
         <title>Admin Users</title>
       </Head>
-      <AdminTabsNav />
-      {/* Add your admin users content here */}
+      <AdminTabsNav isAdmin={isAdmin} isOwner={isOwner} />
+      <div className="max-w-2xl mx-auto mt-8">
+        {formError && <div className="mb-4 text-red-600">{formError}</div>}
+        {isOwner && (
+          <div className="mb-6 flex items-center space-x-2">
+            <input
+              type="email"
+              value={newAdminEmail}
+              onChange={e => setNewAdminEmail(e.target.value)}
+              placeholder="Enter email to add admin"
+              className="border px-3 py-2 rounded w-full"
+            />
+            <button
+              onClick={handleAddAdmin}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+            >
+              Add Admin
+            </button>
+          </div>
+        )}
+        <h2 className="text-lg font-semibold mb-4">Current Admins</h2>
+        {loadingAdmins ? (
+          <div>Loading admins...</div>
+        ) : (
+          <ul className="divide-y divide-gray-200">
+            {admins.map(admin => (
+              <li key={admin.id} className="flex items-center justify-between py-2">
+                <span>{admin.email} {admin.is_owner && <span className="ml-2 text-xs text-green-600">(Owner)</span>}</span>
+                {isOwner && !admin.is_owner && (
+                  <button
+                    onClick={() => handleRemoveAdmin(admin.id)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Layout>
   )
 }

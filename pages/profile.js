@@ -7,27 +7,63 @@ import Link from "next/link"
 import Layout from "../components/Layout"
 import supabase from "../utils/supabaseClient"
 import Image from "next/image"
+import useSWR from "swr"
+import { useAuth } from "../contexts/AuthContext"
+import { MoonLoader } from "react-spinners"
+
+const PAGE_SIZE = 10;
+
+// SWR fetchers
+const fetchWishlistSWR = async (userId, page = 0) => {
+  const { data, error } = await supabase
+    .from("wishlists")
+    .select(`
+      id,
+      created_at,
+      products (
+        id,
+        name,
+        price,
+        discount,
+        image_urls
+      )
+    `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+  if (error) throw error;
+  return data || [];
+};
+
+const fetchOrdersSWR = async (userId, page = 0) => {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, created_at, total_amount, status")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+  if (error) throw error;
+  return data || [];
+};
 
 export default function Profile() {
-  const [session, setSession] = useState(null)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [formLoading, setFormLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [message, setMessage] = useState(null)
+  const { session, loading } = useAuth();
+  const [user, setUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
     address: "",
-  })
-  const [activeTab, setActiveTab] = useState("profile")
-  const [orders, setOrders] = useState([])
-  const [ordersLoading, setOrdersLoading] = useState(false)
-  const [addresses, setAddresses] = useState([])
-  const [addressesLoading, setAddressesLoading] = useState(false)
-  const [wishlist, setWishlist] = useState([])
-  const [wishlistLoading, setWishlistLoading] = useState(false)
-  const [showAddressForm, setShowAddressForm] = useState(false)
+  });
+  const [activeTab, setActiveTab] = useState("profile");
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [addresses, setAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressFormData, setAddressFormData] = useState({
     name: "",
     address: "",
@@ -36,66 +72,42 @@ export default function Profile() {
     postal_code: "",
     country: "Kenya",
     is_default: false,
-  })
+  });
+  const router = useRouter();
+  const { checkout } = router.query;
+  const [wishlistPage, setWishlistPage] = useState(0);
+  const [ordersPage, setOrdersPage] = useState(0);
 
-  const router = useRouter()
-  const { checkout } = router.query
-
-  useEffect(() => {
-    // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[DEBUG] Session fetched:", session)
-      setSession(session)
-
-      if (!session) {
-        router.push("/login?redirect=/profile")
-        return
-      }
-
-      // Fetch user data
-      fetchUserData(session.user.id)
-    })
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[DEBUG] Auth state changed:", event, session)
-      setSession(session)
-      if (!session) {
-        router.push("/login?redirect=/profile")
-      }
-    })
-
-    // Set active tab based on query param
-    if (checkout) {
-      setActiveTab("addresses")
-    }
-
-    return () => {
-      authListener?.subscription?.unsubscribe()
-    }
-  }, [router, checkout])
+  const { data: wishlist, error: wishlistError } = useSWR(
+    session?.user ? ["wishlist", session.user.id, wishlistPage] : null,
+    () => fetchWishlistSWR(session.user.id, wishlistPage)
+  );
+  const { data: orders, error: ordersError } = useSWR(
+    session?.user ? ["orders", session.user.id, ordersPage] : null,
+    () => fetchOrdersSWR(session.user.id, ordersPage)
+  );
 
   useEffect(() => {
-    if (session?.user && activeTab === "orders") {
-      fetchOrders()
+    if (!loading && !session) {
+      router.replace("/login?redirect=/profile");
     }
-  }, [session, activeTab])
+  }, [loading, session, router]);
 
   useEffect(() => {
     if (session?.user && activeTab === "addresses") {
-      fetchAddresses()
+      fetchAddresses();
     }
-  }, [session, activeTab])
+  }, [session, activeTab]);
 
   useEffect(() => {
-    if (session?.user && activeTab === "wishlist") {
-      fetchWishlist()
+    if (session?.user) {
+      fetchUserData(session.user.id);
     }
-  }, [session, activeTab])
+  }, [session]);
 
   async function fetchUserData(userId) {
     try {
-      setLoading(true)
+      setUserLoading(true);
       console.log("[DEBUG] Fetching user data for userId:", userId)
 
       // Get user data from our users table
@@ -125,65 +137,16 @@ export default function Profile() {
       console.error("Error fetching user data:", error)
       setError("Failed to load user data. Please try again later.")
     } finally {
-      setLoading(false)
+      setUserLoading(false);
     }
   }
 
-  async function fetchOrders() {
-    try {
-      setOrdersLoading(true)
-
-      // Get user's orders
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      setOrders(data || [])
-    } catch (error) {
-      console.error("Error fetching orders:", error)
-    } finally {
-      setOrdersLoading(false)
-    }
-  }
-
-  async function fetchAddresses() {
-    try {
-      setAddressesLoading(true)
-
-      // Get user's saved addresses
-      const { data, error } = await supabase
-        .from("saved_addresses")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("is_default", { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      setAddresses(data || [])
-    } catch (error) {
-      console.error("Error fetching addresses:", error)
-    } finally {
-      setAddressesLoading(false)
-    }
-  }
-
-  async function fetchWishlist() {
+  async function fetchWishlist(page = 0) {
     try {
       setWishlistLoading(true)
-
-      // Get user's wishlist items with product details
       const { data, error } = await supabase
         .from("wishlists")
-        .select(
-          `
+        .select(`
           id,
           created_at,
           products (
@@ -193,20 +156,51 @@ export default function Profile() {
             discount,
             image_urls
           )
-        `,
-        )
+        `)
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      setWishlist(data || [])
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) throw error;
+      setWishlist(data || []);
     } catch (error) {
-      console.error("Error fetching wishlist:", error)
+      console.error("Error fetching wishlist:", error);
     } finally {
-      setWishlistLoading(false)
+      setWishlistLoading(false);
+    }
+  }
+
+  async function fetchOrders(page = 0) {
+    try {
+      setOrdersLoading(true)
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, created_at, total_amount, status")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }
+
+  async function fetchAddresses() {
+    try {
+      setAddressesLoading(true)
+      const { data, error } = await supabase
+        .from("saved_addresses")
+        .select("id, name, address, city, state, is_default")
+        .eq("user_id", session.user.id)
+        .order("is_default", { ascending: false });
+      if (error) throw error;
+      setAddresses(data || []);
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
+    } finally {
+      setAddressesLoading(false);
     }
   }
 
@@ -363,11 +357,19 @@ export default function Profile() {
     router.push("/")
   }
 
-  if (loading) {
+  // Only redirect if not logged in
+  if (!session && !loading) {
+    if (typeof window !== 'undefined') {
+      router.replace('/login?redirect=/profile')
+    }
+    return null
+  }
+
+  if (loading || userLoading) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading profile...</p>
+          <MoonLoader color="#a855f7" size={48} />
         </div>
       </Layout>
     )
@@ -634,18 +636,10 @@ export default function Profile() {
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Order History</h2>
 
                     {ordersLoading ? (
-                      <div className="animate-pulse">
-                        <div className="space-y-4">
-                          {[...Array(3)].map((_, index) => (
-                            <div key={index} className="border rounded-lg p-4">
-                              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="flex justify-center items-center h-40">
+                        <MoonLoader color="#a855f7" size={40} />
                       </div>
-                    ) : orders.length === 0 ? (
+                    ) : orders?.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-gray-500 mb-4">You haven't placed any orders yet.</p>
                         <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
@@ -654,7 +648,7 @@ export default function Profile() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {orders.map((order) => (
+                        {orders?.map((order) => (
                           <div key={order.id} className="border rounded-lg overflow-hidden">
                             <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
                               <div>
@@ -857,16 +851,8 @@ export default function Profile() {
                     )}
 
                     {addressesLoading ? (
-                      <div className="animate-pulse">
-                        <div className="space-y-4">
-                          {[...Array(2)].map((_, index) => (
-                            <div key={index} className="border rounded-lg p-4">
-                              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="flex justify-center items-center h-40">
+                        <MoonLoader color="#a855f7" size={40} />
                       </div>
                     ) : addresses.length === 0 ? (
                       <div className="text-center py-8">
@@ -930,18 +916,10 @@ export default function Profile() {
                     <h2 className="text-lg font-medium text-gray-900 mb-4">My Wishlist</h2>
 
                     {wishlistLoading ? (
-                      <div className="animate-pulse">
-                        <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-                          {[...Array(3)].map((_, index) => (
-                            <div key={index}>
-                              <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200"></div>
-                              <div className="mt-4 h-4 bg-gray-200 rounded w-3/4"></div>
-                              <div className="mt-2 h-4 bg-gray-200 rounded w-1/2"></div>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="flex justify-center items-center h-40">
+                        <MoonLoader color="#a855f7" size={40} />
                       </div>
-                    ) : wishlist.length === 0 ? (
+                    ) : wishlist?.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-gray-500 mb-4">Your wishlist is empty.</p>
                         <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
@@ -950,7 +928,7 @@ export default function Profile() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {wishlist.map((item) => (
+                        {wishlist?.map((item) => (
                           <Link key={item.id} href={`/product/${item.products.id}`} className="group relative block focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg">
                             <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 group-hover:opacity-75">
                               {item.products.image_urls && item.products.image_urls.length > 0 ? (
@@ -960,6 +938,7 @@ export default function Profile() {
                                   layout="fill"
                                   objectFit="cover"
                                   className="h-full w-full object-cover object-center"
+                                  priority={true}
                                 />
                               ) : (
                                 <div className="h-full w-full flex items-center justify-center">

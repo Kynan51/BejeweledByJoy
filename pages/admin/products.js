@@ -7,14 +7,16 @@ import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminNav from "../../components/AdminNav"
 import supabase from "../../utils/supabaseClient"
+import imageCompression from "browser-image-compression"
+import { useAuth } from "../../contexts/AuthContext"
+import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role"
 
 export default function AdminProducts() {
-  const router = useRouter()
-  const [session, setSession] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { session, loading } = useAuth();
+  const router = useRouter();
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState({
     id: null,
     name: "",
@@ -22,76 +24,45 @@ export default function AdminProducts() {
     price: "",
     discount: 0,
     image_urls: [],
-    quantity: 0, // Add quantity field
-  })
-  const [uploadedImages, setUploadedImages] = useState([])
-  const [isUploading, setIsUploading] = useState(false)
-  const [formError, setFormError] = useState(null)
+    quantity: 0,
+  });
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const PAGE_SIZE = 20;
+
+  const userEmail = session?.user?.email || null;
+  const role = userEmail ? getUserRole(userEmail) : null;
+  const isAdmin = userEmail ? isAdminRole(userEmail) : false;
+  const isOwner = userEmail ? isOwnerRole(userEmail) : false;
+
+  // Redirect unauthorized users
+  useEffect(() => {
+    if (!loading && !isAdmin && !isOwner) {
+      router.replace("/");
+    }
+  }, [loading, isAdmin, isOwner]);
 
   useEffect(() => {
-    // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-
-      // Check if user is admin
-      if (session?.user) {
-        checkIfAdmin(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (session?.user) {
-        checkIfAdmin(session.user.email)
-      } else {
-        router.push("/auth")
-      }
-    })
-
-    return () => {
-      authListener?.subscription?.unsubscribe()
+    if (isAdmin || isOwner) {
+      fetchProducts();
     }
-  }, [router])
+  }, [isAdmin, isOwner]);
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchProducts()
-    }
-  }, [isAdmin])
-
-  async function checkIfAdmin(email) {
-    if (!email) return
-
+  async function fetchProducts(page = 0) {
     try {
-      const { data, error } = await supabase.from("admins").select("*").eq("email", email).single()
-
-      if (data && !error) {
-        setIsAdmin(true)
-      } else {
-        router.push("/auth")
-      }
+      setLoadingProducts(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, price, discount, image_urls, quantity, created_at")
+        .order("created_at", { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) throw error;
+      setProducts(data || []);
     } catch (error) {
-      console.error("Error checking admin status:", error)
-      router.push("/auth")
-    }
-  }
-
-  async function fetchProducts() {
-    try {
-      setLoading(true)
-
-      const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      setProducts(data || [])
-    } catch (error) {
-      console.error("Error fetching products:", error)
+      console.error("Error fetching products:", error);
     } finally {
-      setLoading(false)
+      setLoadingProducts(false);
     }
   }
 
@@ -103,12 +74,12 @@ export default function AdminProducts() {
       price: "",
       discount: 0,
       image_urls: [],
-      quantity: 0, // Add quantity field
-    })
-    setUploadedImages([])
-    setFormError(null)
-    setIsModalOpen(true)
-  }
+      quantity: 0,
+    });
+    setUploadedImages([]);
+    setFormError(null);
+    setIsModalOpen(true);
+  };
 
   const openEditModal = (product) => {
     setCurrentProduct({
@@ -117,46 +88,48 @@ export default function AdminProducts() {
       description: product.description || "",
       price: product.price,
       discount: product.discount || 0,
-      // Defensive: filter out null, 'null', 'undefined', empty
       image_urls: (product.image_urls || []).filter(
-        (url) => url && url !== 'null' && url !== 'undefined'
+        (url) => url && url !== "null" && url !== "undefined"
       ),
-      quantity: product.quantity || 0, // Add quantity field
-    })
-    setUploadedImages([])
-    setFormError(null)
-    setIsModalOpen(true)
-  }
+      quantity: product.quantity || 0,
+    });
+    setUploadedImages([]);
+    setFormError(null);
+    setIsModalOpen(true);
+  };
 
   const closeModal = () => {
-    setIsModalOpen(false)
-  }
+    setIsModalOpen(false);
+  };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
 
     if (name === "price") {
-      // Only allow numbers and decimal point
-      const regex = /^[0-9]*\.?[0-9]*$/
+      const regex = /^[0-9]*\.?[0-9]*$/;
       if (value === "" || regex.test(value)) {
-        setCurrentProduct({ ...currentProduct, [name]: value })
+        setCurrentProduct({ ...currentProduct, [name]: value });
       }
     } else if (name === "discount") {
-      // Only allow numbers between 0-100
-      const numValue = Number.parseInt(value)
+      const numValue = Number.parseInt(value);
       if (value === "" || (numValue >= 0 && numValue <= 100)) {
-        setCurrentProduct({ ...currentProduct, [name]: value === "" ? 0 : numValue })
+        setCurrentProduct({
+          ...currentProduct,
+          [name]: value === "" ? 0 : numValue,
+        });
       }
     } else if (name === "quantity") {
-      // Only allow non-negative integers
-      const numValue = Number.parseInt(value)
+      const numValue = Number.parseInt(value);
       if (value === "" || numValue >= 0) {
-        setCurrentProduct({ ...currentProduct, [name]: value === "" ? 0 : numValue })
+        setCurrentProduct({
+          ...currentProduct,
+          [name]: value === "" ? 0 : numValue,
+        });
       }
     } else {
-      setCurrentProduct({ ...currentProduct, [name]: value })
+      setCurrentProduct({ ...currentProduct, [name]: value });
     }
-  }
+  };
 
   const handleImageUpload = async (e) => {
     const files = e.target.files;
@@ -166,28 +139,30 @@ export default function AdminProducts() {
     setFormError(null);
 
     try {
-      // Always start fresh, do not accumulate
       const newUploadedImages = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
-        // Check file type
         if (!file.type.startsWith("image/")) {
           setFormError("Only image files are allowed.");
           continue;
         }
 
-        // Check file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
           setFormError("Image size should be less than 5MB.");
           continue;
         }
 
-        // Create a temporary URL for preview
-        const previewUrl = URL.createObjectURL(file);
+        const compressedFile = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1024,
+          useWebWorker: true,
+        });
 
-        newUploadedImages.push({ file, previewUrl });
+        const previewUrl = URL.createObjectURL(compressedFile);
+
+        newUploadedImages.push({ file: compressedFile, previewUrl });
       }
 
       setUploadedImages(newUploadedImages);
@@ -200,32 +175,31 @@ export default function AdminProducts() {
   };
 
   const removeUploadedImage = (index) => {
-    const newUploadedImages = [...uploadedImages]
+    const newUploadedImages = [...uploadedImages];
 
-    // Revoke object URL to prevent memory leaks
-    URL.revokeObjectURL(newUploadedImages[index].previewUrl)
+    URL.revokeObjectURL(newUploadedImages[index].previewUrl);
 
-    newUploadedImages.splice(index, 1)
-    setUploadedImages(newUploadedImages)
-  }
+    newUploadedImages.splice(index, 1);
+    setUploadedImages(newUploadedImages);
+  };
 
   const removeExistingImage = (index) => {
-    const newImageUrls = [...currentProduct.image_urls]
-    newImageUrls.splice(index, 1)
-    setCurrentProduct({ ...currentProduct, image_urls: newImageUrls })
-  }
+    const newImageUrls = [...currentProduct.image_urls];
+    newImageUrls.splice(index, 1);
+    setCurrentProduct({ ...currentProduct, image_urls: newImageUrls });
+  };
 
   const uploadImageToServer = async (file, productId) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('productId', productId || 'new');
-    const res = await fetch('/api/admin-upload-image', {
-      method: 'POST',
-      body: formData
+    formData.append("file", file);
+    formData.append("productId", productId || "new");
+    const res = await fetch("/api/admin-upload-image", {
+      method: "POST",
+      body: formData,
     });
     const result = await res.json();
-    console.log('uploadImageToServer result:', result, 'status:', res.status);
-    if (!res.ok) throw new Error(result.error || 'Image upload failed');
+    console.log("uploadImageToServer result:", result, "status:", res.status);
+    if (!res.ok) throw new Error(result.error || "Image upload failed");
     return result.url;
   };
 
@@ -234,7 +208,6 @@ export default function AdminProducts() {
     setFormError(null);
     console.log("Submitting product:", currentProduct);
 
-    // Validate form
     if (!currentProduct.name.trim()) {
       setFormError("Product name is required.");
       return;
@@ -248,7 +221,6 @@ export default function AdminProducts() {
     try {
       setIsUploading(true);
 
-      // Upload new images to server in parallel
       const newImageUrls = await Promise.all(
         uploadedImages.map(async (uploadedImage) => {
           const file = uploadedImage.file;
@@ -258,7 +230,6 @@ export default function AdminProducts() {
         })
       );
 
-      // Combine existing and new image URLs
       const allImageUrls = [
         ...(currentProduct.image_urls || []).filter(
           (url) => url && url !== "null" && url !== "undefined"
@@ -269,14 +240,13 @@ export default function AdminProducts() {
       ];
       console.log("allImageUrls to be saved:", allImageUrls);
 
-      // Prepare product data
       const productData = {
         name: currentProduct.name.trim(),
         description: currentProduct.description.trim(),
         price: Number.parseFloat(currentProduct.price),
         discount: Number.parseInt(currentProduct.discount) || 0,
         image_urls: allImageUrls,
-        quantity: Number.parseInt(currentProduct.quantity) || 0, // Include quantity
+        quantity: Number.parseInt(currentProduct.quantity) || 0,
       };
 
       console.log("Sending productData to API:", productData);
@@ -284,7 +254,6 @@ export default function AdminProducts() {
       let res, result;
 
       if (currentProduct.id) {
-        // Update existing product via secure API route
         res = await fetch("/api/admin-update-product", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -294,7 +263,6 @@ export default function AdminProducts() {
         console.log("Update product API response:", result);
         if (!res.ok) throw new Error(result.error || "Error updating product");
       } else {
-        // Add new product via secure API route
         res = await fetch("/api/admin-add-product", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -305,7 +273,6 @@ export default function AdminProducts() {
         if (!res.ok) throw new Error(result.error || "Error adding product");
       }
 
-      // Refresh product list
       fetchProducts();
       closeModal();
     } catch (error) {
@@ -318,59 +285,74 @@ export default function AdminProducts() {
 
   const handleDeleteProduct = async (productId) => {
     if (!confirm("Are you sure you want to delete this product?")) {
-      return
+      return;
     }
 
     try {
-      // Delete product from database via secure API route
-      const res = await fetch('/api/admin-delete-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: productId })
+      const res = await fetch("/api/admin-delete-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: productId }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Error deleting product');
+      if (!res.ok) throw new Error(result.error || "Error deleting product");
 
-      // Refresh products list
-      await fetchProducts()
+      await fetchProducts();
     } catch (error) {
-      console.error("Error deleting product:", error)
-      alert("Error deleting product. Please try again.")
+      console.error("Error deleting product:", error);
+      alert("Error deleting product. Please try again.");
     }
-  }
+  };
 
-  if (!isAdmin) {
+  if (loading) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Checking authentication...</p>
+          <p className="text-gray-500">Loading...</p>
         </div>
       </Layout>
-    )
+    );
+  }
+
+  if (!(isAdmin || isOwner)) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">You are not authorized to view this page.</p>
+        </div>
+      </Layout>
+    );
   }
 
   return (
     <Layout>
       <Head>
         <title>Manage Products - Jewelry Store</title>
-        <meta name="description" content="Admin product management for Jewelry Store." />
+        <meta
+          name="description"
+          content="Admin product management for Jewelry Store."
+        />
       </Head>
 
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Manage Products</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Manage Products
+          </h1>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-64 md:mr-8">
-                <AdminNav />
+                <AdminNav isAdmin={isAdmin} />
               </div>
 
               <div className="flex-1">
                 <div className="mb-6 flex justify-between items-center">
-                  <h2 className="text-lg font-medium text-gray-900">Products</h2>
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Products
+                  </h2>
                   <button
                     onClick={openAddModal}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -379,11 +361,14 @@ export default function AdminProducts() {
                   </button>
                 </div>
 
-                {loading ? (
+                {loadingProducts ? (
                   <div className="animate-pulse">
                     <div className="space-y-4">
                       {[...Array(5)].map((_, index) => (
-                        <div key={index} className="bg-white shadow rounded-lg p-4">
+                        <div
+                          key={index}
+                          className="bg-white shadow rounded-lg p-4"
+                        >
                           <div className="flex items-center space-x-4">
                             <div className="h-16 w-16 bg-gray-200 rounded"></div>
                             <div className="flex-1">
@@ -398,7 +383,9 @@ export default function AdminProducts() {
                   </div>
                 ) : products.length === 0 ? (
                   <div className="text-center py-10 bg-white shadow rounded-lg">
-                    <p className="text-gray-500">No products available. Add your first product!</p>
+                    <p className="text-gray-500">
+                      No products available. Add your first product!
+                    </p>
                   </div>
                 ) : (
                   <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -437,13 +424,16 @@ export default function AdminProducts() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="relative w-10 h-10 flex-shrink-0">
-                                  {product.image_urls && product.image_urls.length > 0 && product.image_urls[0] ? (
+                                  {product.image_urls &&
+                                  product.image_urls.length > 0 &&
+                                  product.image_urls[0] ? (
                                     <Image
                                       src={product.image_urls[0]}
                                       alt={product.name}
                                       fill
                                       style={{ objectFit: "cover" }}
                                       className="rounded object-center object-cover"
+                                      loading="lazy"
                                     />
                                   ) : (
                                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
@@ -465,12 +455,16 @@ export default function AdminProducts() {
                                   )}
                                 </div>
                                 <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {product.name}
+                                  </div>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">Ksh{product.price.toFixed(2)}</div>
+                              <div className="text-sm text-gray-900">
+                                Ksh{product.price.toFixed(2)}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {product.discount > 0 ? (
@@ -478,7 +472,9 @@ export default function AdminProducts() {
                                   {product.discount}% OFF
                                 </span>
                               ) : (
-                                <span className="text-sm text-gray-500">No discount</span>
+                                <span className="text-sm text-gray-500">
+                                  No discount
+                                </span>
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -507,15 +503,20 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      {/* Add/Edit Product Modal */}
       {isModalOpen && (
         <div className="fixed z-10 inset-0 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div
+              className="fixed inset-0 transition-opacity"
+              aria-hidden="true"
+            >
               <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
             </div>
 
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+            <span
+              className="hidden sm:inline-block sm:align-middle sm:h-screen"
+              aria-hidden="true"
+            >
               &#8203;
             </span>
 
@@ -525,14 +526,23 @@ export default function AdminProducts() {
                   <div className="sm:flex sm:items-start">
                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                       <h3 className="text-lg leading-6 font-medium text-gray-900">
-                        {currentProduct.id ? "Edit Product" : "Add New Product"}
+                        {currentProduct.id
+                          ? "Edit Product"
+                          : "Add New Product"}
                       </h3>
 
-                      {formError && <div className="mt-2 p-2 bg-red-50 text-red-500 text-sm rounded">{formError}</div>}
+                      {formError && (
+                        <div className="mt-2 p-2 bg-red-50 text-red-500 text-sm rounded">
+                          {formError}
+                        </div>
+                      )}
 
                       <div className="mt-4 space-y-4">
                         <div>
-                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="name"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Product Name *
                           </label>
                           <input
@@ -547,7 +557,10 @@ export default function AdminProducts() {
                         </div>
 
                         <div>
-                          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="description"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Description
                           </label>
                           <textarea
@@ -562,7 +575,10 @@ export default function AdminProducts() {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                            <label
+                              htmlFor="price"
+                              className="block text-sm font-medium text-gray-700"
+                            >
                               Price (Ksh) *
                             </label>
                             <input
@@ -576,7 +592,10 @@ export default function AdminProducts() {
                             />
                           </div>
                           <div>
-                            <label htmlFor="discount" className="block text-sm font-medium text-gray-700">
+                            <label
+                              htmlFor="discount"
+                              className="block text-sm font-medium text-gray-700"
+                            >
                               Discount (%)
                             </label>
                             <input
@@ -591,7 +610,10 @@ export default function AdminProducts() {
                             />
                           </div>
                           <div>
-                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                            <label
+                              htmlFor="quantity"
+                              className="block text-sm font-medium text-gray-700"
+                            >
                               Quantity *
                             </label>
                             <input
@@ -608,7 +630,9 @@ export default function AdminProducts() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Product Images</label>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Product Images
+                          </label>
 
                           <div className="mt-2 flex items-center">
                             <input
@@ -629,52 +653,60 @@ export default function AdminProducts() {
                             </label>
                           </div>
 
-                          {/* Existing Images */}
-                          {currentProduct.image_urls && currentProduct.image_urls.length > 0 && (
-                            <div className="mt-4">
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Current Images</h4>
-                              <div className="grid grid-cols-3 gap-2">
-                                {currentProduct.image_urls.map((url, index) => (
-                                  <div key={index} className="relative">
-                                    <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-md bg-gray-200">
-                                      <Image
-                                        src={url || "/placeholder.svg"}
-                                        alt={`Product image ${index + 1}`}
-                                        fill
-                                        style={{ objectFit: "cover" }}
-                                        className="w-full h-full object-center object-cover"
-                                      />
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeExistingImage(index)}
-                                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 shadow-sm"
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M6 18L18 6M6 6l12 12"
-                                        />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                ))}
+                          {currentProduct.image_urls &&
+                            currentProduct.image_urls.length > 0 && (
+                              <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                  Current Images
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {currentProduct.image_urls.map(
+                                    (url, index) => (
+                                      <div key={index} className="relative">
+                                        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-md bg-gray-200">
+                                          <Image
+                                            src={url || "/placeholder.svg"}
+                                            alt={`Product image ${index + 1}`}
+                                            fill
+                                            style={{ objectFit: "cover" }}
+                                            className="w-full h-full object-center object-cover"
+                                            loading="lazy"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            removeExistingImage(index)
+                                          }
+                                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 shadow-sm"
+                                        >
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-4 w-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M6 18L18 6M6 6l12 12"
+                                            />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* New Uploaded Images */}
                           {uploadedImages.length > 0 && (
                             <div className="mt-4">
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">New Images</h4>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                New Images
+                              </h4>
                               <div className="grid grid-cols-3 gap-2">
                                 {uploadedImages.map((image, index) => (
                                   <div key={index} className="relative">
@@ -685,11 +717,14 @@ export default function AdminProducts() {
                                         fill
                                         style={{ objectFit: "cover" }}
                                         className="w-full h-full object-center object-cover"
+                                        loading="lazy"
                                       />
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => removeUploadedImage(index)}
+                                      onClick={() =>
+                                        removeUploadedImage(index)
+                                      }
                                       className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 shadow-sm"
                                     >
                                       <svg
@@ -740,5 +775,5 @@ export default function AdminProducts() {
         </div>
       )}
     </Layout>
-  )
+  );
 }

@@ -26,7 +26,7 @@ export default function ImageGallery({ images = [] }) {
           fill
           style={{ objectFit: "cover" }}
           className="w-full h-full object-center object-cover"
-          priority // Add priority for LCP image
+          priority={true} // Only set priority for the first image in the gallery (LCP)
         />
       </div>
 
@@ -47,6 +47,8 @@ export default function ImageGallery({ images = [] }) {
                 fill
                 style={{ objectFit: "cover" }}
                 className="w-full h-full object-center object-cover"
+                loading="lazy"
+                // Do not set priority for thumbnails
               />
             </div>
           ))}

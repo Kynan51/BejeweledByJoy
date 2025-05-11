@@ -6,36 +6,57 @@ import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminNav from "../../components/AdminNav"
 import { DashboardTabs } from "../../components/AdminTabsNav"
-import supabase from "../../utils/supabaseClient"
+import { useAuth } from "../../contexts/AuthContext"
+import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
 
 export default function AdminDashboard() {
-  const router = useRouter()
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState("overview")
+  const { session, loading } = useAuth();
+  const router = useRouter();
+  const [tab, setTab] = useState("overview");
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalViews: 0,
     mostViewedProducts: [],
-  })
+  });
+
+  const userEmail = session?.user?.email || null;
+  const role = userEmail ? getUserRole(userEmail) : null;
+  const isAdmin = userEmail ? isAdminRole(userEmail) : false;
+  const isOwner = userEmail ? isOwnerRole(userEmail) : false;
 
   useEffect(() => {
-    // Fetch admin status and stats logic here
-  }, [])
+    if (!loading && !isAdmin && !isOwner) {
+      router.replace("/");
+    }
+  }, [loading, isAdmin, isOwner]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!(isAdmin || isOwner)) {
+    return null;
+  }
 
   return (
     <Layout>
       <Head>
         <title>Admin Dashboard</title>
       </Head>
-      <AdminNav />
+      <AdminNav isAdmin={isAdmin} />
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4">
-            <DashboardTabs />
+            {(isAdmin || isOwner) && <DashboardTabs isAdmin={isAdmin} />}
             <div className="flex-1">
               {router.pathname === "/admin" && (
                 loading ? (

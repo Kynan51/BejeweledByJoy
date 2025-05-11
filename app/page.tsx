@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Layout from "../components/Layout"
 import ProductCard from "../components/ProductCard"
 import SearchAndFilter from "../components/SearchAndFilter"
-import supabase from "../utils/supabaseClient"
 import ActiveFilters from "../components/ActiveFilters"
+import useSWR from "swr"
+import { fetchProductsSWR } from "../lib/fetchers"
+import { MoonLoader } from "react-spinners"
 
 interface Filters {
   search?: string
@@ -18,47 +20,31 @@ interface Filters {
 
 export default function Home() {
   const router = useRouter()
-  const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<Filters>({})
 
-  useEffect(() => {
-    // Extract filters from URL search params (app router)
-    // You may need to use useSearchParams from next/navigation for query params
-    // For now, fallback to empty filters
-    fetchProducts({})
-  }, [])
+  const { data: products, error, isLoading, mutate } = useSWR([
+    "products",
+    filters,
+  ], fetchProductsSWR)
 
-  async function fetchProducts({ search, minPrice, maxPrice, hasDiscount, sortBy }: Filters) {
-    setLoading(true)
-    setError(null)
-    let query = supabase.from("products").select("*")
-    if (search) query = query.ilike("name", `%${search}%`)
-    if (minPrice) query = query.gte("price", minPrice)
-    if (maxPrice) query = query.lte("price", maxPrice)
-    if (hasDiscount === "true") query = query.gt("discount", 0)
-    if (sortBy === "price-asc") query = query.order("price", { ascending: true })
-    else if (sortBy === "price-desc") query = query.order("price", { ascending: false })
-    else query = query.order("created_at", { ascending: false })
-    // @ts-ignore
-    const { data, error } = await query
-    if (error) setError(error.message)
-    else setProducts(data)
-    setLoading(false)
+  function handleSearch(newFilters: Filters) {
+    setFilters(newFilters)
+    // No need to call mutate with a key; SWR will refetch automatically
   }
 
   return (
     <Layout>
-      <SearchAndFilter onSearch={fetchProducts} initialFilters={filters} />
+      <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
       <ActiveFilters filters={filters} />
-      {loading ? (
-        <div>Loading...</div>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
       ) : error ? (
-        <div className="text-red-500">{error}</div>
+        <div className="text-red-500">{error.message}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {products.map((product) => (
+          {products?.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

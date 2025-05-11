@@ -23,5 +23,6 @@ CREATE TABLE views (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id uuid REFERENCES products(id),
   viewed_at TIMESTAMP DEFAULT now(),
-  user_agent TEXT
+  user_agent TEXT,
+  device_type TEXT -- 'Mobile', 'Desktop', 'Tablet', 'Other'
 );

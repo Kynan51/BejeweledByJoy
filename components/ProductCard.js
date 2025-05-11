@@ -88,6 +88,7 @@ export default function ProductCard({ product, trackView = true }) {
               fill
               style={{ objectFit: "cover" }}
               className="object-center object-cover"
+              priority={true}
             />
           ) : null}
         </div>
