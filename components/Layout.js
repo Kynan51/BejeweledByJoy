@@ -154,7 +154,6 @@ export default function Layout({ children }) {
           <FooterContacts />
         </div>
       </footer>
-      <WhatsAppButton />
     </div>
   );
 }
