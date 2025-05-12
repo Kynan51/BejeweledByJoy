@@ -5,6 +5,7 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import Layout from "../../components/Layout"
 import AdminTabsNav from "../../components/AdminTabsNav"
+import AdminNav from "../../components/AdminNav";
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
 
@@ -86,16 +87,6 @@ export default function AdminUsers() {
     }
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      </Layout>
-    );
-  }
-
   if (!(isAdmin || isOwner)) {
     return (
       <Layout>
@@ -111,7 +102,13 @@ export default function AdminUsers() {
       <Head>
         <title>Admin Users</title>
       </Head>
-      <AdminTabsNav isAdmin={isAdmin} isOwner={isOwner} />
+      {/* Non-blocking spinner overlay during loading */}
+      {(loading || loadingAdmins) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      )}
+      <AdminNav isAdmin={isAdmin} />
       <div className="max-w-2xl mx-auto mt-8">
         {formError && <div className="mb-4 text-red-600">{formError}</div>}
         {isOwner && (
@@ -153,5 +150,5 @@ export default function AdminUsers() {
         )}
       </div>
     </Layout>
-  )
+  );
 }

@@ -17,6 +17,7 @@ export default function Login() {
   const [view, setView] = useState("sign-in") // 'sign-in' or 'forgot-password'
   const [emailResent, setEmailResent] = useState(false)
   const [initialCheck, setInitialCheck] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
 
   const router = useRouter()
   const { redirect } = router.query
@@ -58,17 +59,6 @@ export default function Login() {
       }
     }
   }, [session, authLoading, redirect]);
-
-  // Prevent rendering login form until initial session check is done, but only block if not on login page
-  if (initialCheck && router.pathname !== "/login") {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <MoonLoader color="#a855f7" size={48} />
-        </div>
-      </Layout>
-    );
-  }
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -166,6 +156,13 @@ export default function Login() {
         <meta name="description" content="Sign in to your BejeweledByJoy account." />
       </Head>
 
+      {/* Spinner overlay during initial session check */}
+      {initialCheck && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+
       <div className="min-h-full flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -231,17 +228,26 @@ export default function Login() {
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                     Password
                   </label>
-                  <div className="mt-1">
+                  <div className="mt-1 relative">
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm pr-10"
                     />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-sm text-gray-500 focus:outline-none"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
                   </div>
                 </div>
 

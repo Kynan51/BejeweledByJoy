@@ -36,7 +36,7 @@ export default function OrderConfirmation() {
       // Get order details
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select("*")
+        .select("id, user_id, total_amount, status, created_at, shipping_address, phone")
         .eq("id", id)
         .eq("user_id", session.user.id)
         .single()
@@ -51,7 +51,10 @@ export default function OrderConfirmation() {
       setOrder(orderData)
 
       // Get order items
-      const { data: itemsData, error: itemsError } = await supabase.from("order_items").select("*").eq("order_id", id)
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("order_items")
+        .select("id, order_id, product_id, product_name, product_price, quantity")
+        .eq("order_id", id)
 
       if (itemsError) throw itemsError
 
@@ -64,34 +67,18 @@ export default function OrderConfirmation() {
     }
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading order details...</p>
-        </div>
-      </Layout>
-    )
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-red-500 mb-4">{error}</p>
-          <Link href="/profile" className="text-purple-600 hover:text-purple-500">Go to Profile</Link>
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
       <Head>
         <title>Order Confirmation - BejeweledByJoy</title>
-        <meta name="description" content="Your order has been confirmed." />
+        <meta name="description" content="Order confirmation details." />
       </Head>
-
+      {/* Non-blocking spinner overlay during loading */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <span className="sr-only">Loading...</span>
+        </div>
+      )}
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">

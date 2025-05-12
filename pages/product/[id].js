@@ -4,12 +4,14 @@ import { useState } from "react"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import Layout from "../../components/Layout"
-import ImageGallery from "../../components/ImageGallery"
 import WishlistButton from "../../components/WishlistButton"
 import { useCart } from "../../contexts/CartContext"
 import supabase from "../../utils/supabaseClient"
 import useSWR from "swr"
 import { MoonLoader } from "react-spinners"
+import dynamic from "next/dynamic"
+
+const ImageGallery = dynamic(() => import("../../components/ImageGallery"), { ssr: false })
 
 const fetcher = async (id) => {
   const { data, error } = await supabase
@@ -78,17 +80,16 @@ export default function ProductDetail() {
   return (
     <Layout>
       <Head>
-        <title>{product ? `${product.name} - BejeweledByJoy` : "Product Details - BejeweledByJoy"}</title>
-        <meta
-          name="description"
-          content={product ? `${product.description?.substring(0, 160)}` : "View our beautiful BejeweledByJoy piece details"}
-        />
+        <title>{product ? product.name : "Product Detail"} - BejeweledByJoy</title>
+        <meta name="description" content={product ? product.description : "Product details and purchase options."} />
       </Head>
-      {isLoading ? (
-        <div className="flex justify-center items-center h-96">
+      {/* Non-blocking spinner overlay during loading */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
         </div>
-      ) : error ? (
+      )}
+      {isLoading ? null : error ? (
         <div className="flex justify-center items-center h-96 text-red-500">{error.message || "Error fetching product"}</div>
       ) : !product ? (
         <div className="text-center py-10">

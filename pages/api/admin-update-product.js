@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     .from('products')
     .update({ name, description, price, discount, image_urls, quantity })
     .eq('id', id)
-    .select('*')
+    .select('id, name, description, price, discount, image_urls, quantity')
     .single();
 
   if (error) {

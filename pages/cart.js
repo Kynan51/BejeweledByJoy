@@ -31,7 +31,7 @@ export default function Cart() {
       // Get user data
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("*")
+        .select("id, address, phone")
         .eq("id", session.user.id)
         .single()
 
@@ -92,6 +92,13 @@ export default function Cart() {
         <title>Shopping Cart - BejeweledByJoy</title>
         <meta name="description" content="View your shopping cart and proceed to checkout." />
       </Head>
+
+      {/* Non-blocking spinner overlay during loading or checkout */}
+      {(loading || checkoutLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <MoonLoader color="#7c3aed" size={48} />
+        </div>
+      )}
 
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

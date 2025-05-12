@@ -304,16 +304,6 @@ export default function AdminProducts() {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      </Layout>
-    );
-  }
-
   if (!(isAdmin || isOwner)) {
     return (
       <Layout>
@@ -328,12 +318,14 @@ export default function AdminProducts() {
     <Layout>
       <Head>
         <title>Manage Products - Jewelry Store</title>
-        <meta
-          name="description"
-          content="Admin product management for Jewelry Store."
-        />
+        <meta name="description" content="Admin product management for Jewelry Store." />
       </Head>
-
+      {/* Non-blocking spinner overlay during loading */}
+      {(loading || loadingProducts) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      )}
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">

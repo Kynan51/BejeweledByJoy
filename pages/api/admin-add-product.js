@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from('products')
       .insert([{ name, description, price, discount, image_urls, quantity }])
-      .select('*')
+      .select('id, name, description, price, discount, image_urls, quantity')
       .single();
     if (error) {
       console.log('Supabase insert error:', error);

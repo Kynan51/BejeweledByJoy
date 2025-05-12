@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import supabase from "../utils/supabaseClient"
 
 const CartContext = createContext()
@@ -428,19 +428,28 @@ export function CartProvider({ children }) {
     return cart.reduce((count, item) => count + item.quantity, 0)
   }
 
+  // Wrap methods in useCallback
+  const addToCartCb = useCallback(addToCart, [cart, session])
+  const removeFromCartCb = useCallback(removeFromCart, [cart, session])
+  const updateQuantityCb = useCallback(updateQuantity, [cart, session])
+  const clearCartCb = useCallback(clearCart, [cart, session])
+  const getCartTotalCb = useCallback(getCartTotal, [cart])
+  const getCartItemCountCb = useCallback(getCartItemCount, [cart])
+
+  // Memoize context value
+  const contextValue = useMemo(() => ({
+    cart,
+    loading,
+    addToCart: addToCartCb,
+    removeFromCart: removeFromCartCb,
+    updateQuantity: updateQuantityCb,
+    clearCart: clearCartCb,
+    getCartTotal: getCartTotalCb,
+    getCartItemCount: getCartItemCountCb,
+  }), [cart, loading, addToCartCb, removeFromCartCb, updateQuantityCb, clearCartCb, getCartTotalCb, getCartItemCountCb])
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        loading,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        getCartTotal,
-        getCartItemCount,
-      }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   )

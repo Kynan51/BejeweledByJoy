@@ -33,7 +33,7 @@ export default function Auth() {
       // Check if user is an admin
       const { data: adminData, error: adminError } = await supabase
         .from("admins")
-        .select("*")
+        .select("id, email, is_owner")
         .eq("email", email)
         .single()
 

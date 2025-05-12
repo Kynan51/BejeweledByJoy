@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import supabase from "../utils/supabaseClient"
@@ -8,6 +8,7 @@ import supabase from "../utils/supabaseClient"
 export default function ProductCard({ product, trackView = true }) {
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const router = useRouter()
+  const viewTimeout = useRef(null)
 
   // Calculate discounted price
   const discountedPrice =
@@ -21,21 +22,22 @@ export default function ProductCard({ product, trackView = true }) {
 
   const handleClick = async () => {
     if (trackView) {
-      // Track product view for analytics
-      try {
-        const { error } = await supabase.from("views").insert([
-          {
-            product_id: product.id,
-            user_agent: navigator.userAgent,
-          },
-        ])
-
-        if (error) {
+      if (viewTimeout.current) clearTimeout(viewTimeout.current)
+      viewTimeout.current = setTimeout(async () => {
+        try {
+          const { error } = await supabase.from("views").insert([
+            {
+              product_id: product.id,
+              user_agent: navigator.userAgent,
+            },
+          ])
+          if (error) {
+            console.error("Error tracking view:", error)
+          }
+        } catch (error) {
           console.error("Error tracking view:", error)
         }
-      } catch (error) {
-        console.error("Error tracking view:", error)
-      }
+      }, 500) // Debounce by 500ms
     }
 
     router.push(`/product/${product.id}`)

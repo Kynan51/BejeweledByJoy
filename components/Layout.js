@@ -8,6 +8,7 @@ import WhatsAppButton from "./WhatsAppButton"
 import AdminTabsNav from "./AdminTabsNav"
 import { useAuth } from "../contexts/AuthContext"
 import FooterContacts from "./FooterContacts"
+import Image from "next/image"
 
 export default function Layout({ children }) {
   const { session, isAdmin, isOwner, loading } = useAuth();
@@ -44,7 +45,7 @@ export default function Layout({ children }) {
             <div className="flex items-center">
               <Link href="/">
                 <span className="flex-shrink-0 flex items-center">
-                  <img src="/picsvg.svg" alt="Logo" className="h-200 w-300" />
+                  <Image src="/picsvg.svg" alt="Logo" width={150} height={100} className="h-100 w-200" />
                 </span>
               </Link>
             </div>

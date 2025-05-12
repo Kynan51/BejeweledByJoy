@@ -87,6 +87,9 @@ export default function Profile() {
     () => fetchOrdersSWR(session.user.id, ordersPage)
   );
 
+  // Add a computed loading state for sub-tabs
+  const isTabLoading = ordersLoading || wishlistLoading || addressesLoading;
+
   useEffect(() => {
     if (!loading && !session) {
       router.replace("/login?redirect=/profile");
@@ -108,34 +111,40 @@ export default function Profile() {
   async function fetchUserData(userId) {
     try {
       setUserLoading(true);
-      console.log("[DEBUG] Fetching user data for userId:", userId)
+      console.log("[DEBUG] Fetching user data for userId:", userId);
 
       // Get user data from our users table
-      const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
-      console.log("[DEBUG] Supabase user data fetch result:", { data, error })
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, phone, address, email") // Include email in the query
+        .eq("id", userId)
+        .single();
+      console.log("[DEBUG] Supabase user data fetch result:", { data, error });
 
       if (error) {
-        throw error
+        throw error;
       }
 
       if (data) {
         // If data is an array (from Supabase), use the first element
         const userData = Array.isArray(data) ? data[0] : data;
-        setUser(userData)
+        setUser(userData);
         setFormData({
           full_name: userData.full_name ?? "",
           phone: userData.phone ?? "",
           address: userData.address ?? "",
-        })
+          email: userData.email ?? "", // Update formData with email
+        });
         console.log("[DEBUG] Setting formData:", {
           full_name: userData.full_name ?? "",
           phone: userData.phone ?? "",
           address: userData.address ?? "",
-        })
+          email: userData.email ?? "", // Log email
+        });
       }
     } catch (error) {
-      console.error("Error fetching user data:", error)
-      setError("Failed to load user data. Please try again later.")
+      console.error("Error fetching user data:", error);
+      setError("Failed to load user data. Please try again later.");
     } finally {
       setUserLoading(false);
     }
@@ -360,31 +369,27 @@ export default function Profile() {
     router.push("/");
   }
 
-  // Only redirect if not logged in
-  if (!session && !loading) {
-    if (typeof window !== 'undefined') {
-      router.replace('/login?redirect=/profile')
-    }
-    return null
-  }
-
-  if (loading || userLoading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <MoonLoader color="#a855f7" size={48} />
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
       <Head>
-        <title>My Profile - BejeweledByJoy</title>
-        <meta name="description" content="Manage your BejeweledByJoy account." />
+        <title>Profile - BejeweledByJoy</title>
+        <meta name="description" content="Your profile and order history." />
       </Head>
-
+      {/* Show error if user data fails to load */}
+      {error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center">
+            {error}
+            <button onClick={() => window.location.reload()} className="block mt-4 px-4 py-2 bg-purple-600 text-white rounded">Retry</button>
+          </div>
+        </div>
+      )}
+      {/* Non-blocking spinner overlay during loading or sub-tab loading, only if no error */}
+      {!error && (loading || userLoading || isTabLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">My Account</h1>

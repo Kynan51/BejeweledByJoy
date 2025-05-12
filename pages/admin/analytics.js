@@ -236,16 +236,6 @@ export default function AdminAnalytics() {
       .sort((a, b) => b.count - a.count)
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      </Layout>
-    )
-  }
-
   if (!(isAdmin || isOwner)) {
     return (
       <Layout>
@@ -253,7 +243,7 @@ export default function AdminAnalytics() {
           <p className="text-gray-500">You are not authorized to view this page.</p>
         </div>
       </Layout>
-    )
+    );
   }
 
   return (
@@ -262,7 +252,12 @@ export default function AdminAnalytics() {
         <title>Analytics - BejeweledByJoy</title>
         <meta name="description" content="Admin analytics for BejeweledByJoy." />
       </Head>
-
+      {/* Non-blocking spinner overlay during loading */}
+      {(loading || loadingAnalytics) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      )}
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">Analytics</h1>
