@@ -46,7 +46,7 @@ export default function Home() {
       <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
       <ActiveFilters filters={filters} />
       <div className="grid grid-cols-1 min-[250px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 min-h-[200px]">
-        {isLoading ? (
+        {isLoading && !loadingTimeout ? (
           <div className="col-span-full flex justify-center items-center min-h-[200px]">
             <MoonLoader color="#a855f7" size={48} />
           </div>
@@ -63,7 +63,9 @@ export default function Home() {
       {loadingTimeout && isLoading && (
         <div className="flex flex-col items-center justify-center mt-8">
           <p className="text-red-500 mb-4">Loading is taking longer than expected. Please check your connection or try refreshing.</p>
-          <button onClick={() => { setLoadingTimeout(false); mutate(); }} className="px-4 py-2 bg-purple-600 text-white rounded">Retry</button>
+          <button onClick={() => { window.location.href = window.location.href; }} className="px-4 py-2 bg-purple-600 text-white rounded mx-auto mt-2">
+            Retry
+          </button>
         </div>
       )}
     </Layout>

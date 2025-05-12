@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import Link from "next/link"
 import Layout from "../components/Layout"
 import supabase from "../utils/supabaseClient"
+import { MoonLoader } from "react-spinners"
 
 export default function Register() {
   const [email, setEmail] = useState("")
@@ -19,8 +20,15 @@ export default function Register() {
   const [message, setMessage] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false)
 
   const router = useRouter()
+
+  useEffect(() => {
+    if (!loading) return
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
+    return () => clearTimeout(timeout)
+  }, [loading])
 
   const handleRegister = async (e) => {
     e.preventDefault()
@@ -101,10 +109,23 @@ export default function Register() {
         <meta name="description" content="Create an account to shop at BejeweledByJoy." />
       </Head>
 
-      {/* Non-blocking spinner overlay during loading */}
-      {loading && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {loading && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <span className="sr-only">Loading...</span>
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
 

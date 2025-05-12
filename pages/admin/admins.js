@@ -8,6 +8,7 @@ import AdminTabsNav from "../../components/AdminTabsNav"
 import AdminNav from "../../components/AdminNav";
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
+import { MoonLoader } from "react-spinners"
 
 export default function AdminUsers() {
   const { session, loading } = useAuth();
@@ -17,6 +18,7 @@ export default function AdminUsers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [formError, setFormError] = useState(null);
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false);
 
   const userEmail = session?.user?.email || null;
   const role = userEmail ? getUserRole(userEmail) : null;
@@ -34,6 +36,12 @@ export default function AdminUsers() {
       fetchAdmins();
     }
   }, [isAdmin, isOwner]);
+
+  useEffect(() => {
+    if (!loading && !loadingAdmins) return;
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [loading, loadingAdmins]);
 
   async function fetchAdmins() {
     try {
@@ -102,10 +110,23 @@ export default function AdminUsers() {
       <Head>
         <title>Admin Users</title>
       </Head>
-      {/* Non-blocking spinner overlay during loading */}
-      {(loading || loadingAdmins) && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {(loading || loadingAdmins) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <p className="text-gray-500">Loading...</p>
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       <AdminNav isAdmin={isAdmin} />

@@ -18,6 +18,7 @@ export default function Login() {
   const [emailResent, setEmailResent] = useState(false)
   const [initialCheck, setInitialCheck] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false);
 
   const router = useRouter()
   const { redirect } = router.query
@@ -37,6 +38,12 @@ export default function Login() {
     });
     // eslint-disable-next-line
   }, []);
+
+  useEffect(() => {
+    if (!loading && !initialCheck && !authLoading) return;
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [loading, initialCheck, authLoading]);
 
   // Redirect after login based on role
   useEffect(() => {
@@ -156,10 +163,23 @@ export default function Login() {
         <meta name="description" content="Sign in to your BejeweledByJoy account." />
       </Head>
 
-      {/* Spinner overlay during initial session check */}
-      {initialCheck && (
+      {/* Spinner overlay during initial session check, with fallback */}
+      {(initialCheck || loading || authLoading) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import Layout from "../../components/Layout"
@@ -43,6 +43,7 @@ export default function ProductDetail() {
 
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false);
 
   // Only fetch when id is a non-empty string and router.isReady is true
   const shouldFetch = router.isReady && typeof id === 'string' && id.length > 0;
@@ -51,6 +52,13 @@ export default function ProductDetail() {
     () => fetcher(id),
     { revalidateOnFocus: false, dedupingInterval: 30000 }
   );
+
+  // Prevent spinner from blocking UI forever (fallback after 10s)
+  useEffect(() => {
+    if (!isLoading) return;
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   const handleQuantityChange = (e) => {
     const value = Number.parseInt(e.target.value)
@@ -83,10 +91,23 @@ export default function ProductDetail() {
         <title>{product ? product.name : "Product Detail"} - BejeweledByJoy</title>
         <meta name="description" content={product ? product.description : "Product details and purchase options."} />
       </Head>
-      {/* Non-blocking spinner overlay during loading */}
-      {isLoading && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {isLoading && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       {isLoading ? null : error ? (

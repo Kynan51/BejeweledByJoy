@@ -7,11 +7,12 @@ import Layout from "../../components/Layout"
 import AdminNav from "../../components/AdminNav"
 import supabase from "../../utils/supabaseClient"
 import { useAuth } from "../../contexts/AuthContext"
-import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role";
+import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role"
+import { MoonLoader } from "react-spinners"
 
 export default function AdminAnalytics() {
-  const { session, loading } = useAuth();
-  const router = useRouter();
+  const { session, loading } = useAuth()
+  const router = useRouter()
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
     viewsByDay: [],
@@ -21,19 +22,27 @@ export default function AdminAnalytics() {
   })
   const [timeRange, setTimeRange] = useState("week")
   const [loadingAnalytics, setLoadingAnalytics] = useState(true)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false)
+
+  // Prevent spinner from blocking UI forever (fallback after 10s)
+  useEffect(() => {
+    if (!loading && !loadingAnalytics) return
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
+    return () => clearTimeout(timeout)
+  }, [loading, loadingAnalytics])
 
   // Client-side role check
-  const userEmail = session?.user?.email || null;
-  const role = userEmail ? getUserRole(userEmail) : null;
-  const isAdmin = userEmail ? isAdminRole(userEmail) : false;
-  const isOwner = userEmail ? isOwnerRole(userEmail) : false;
+  const userEmail = session?.user?.email || null
+  const role = userEmail ? getUserRole(userEmail) : null
+  const isAdmin = userEmail ? isAdminRole(userEmail) : false
+  const isOwner = userEmail ? isOwnerRole(userEmail) : false
 
   // Redirect unauthorized users
   useEffect(() => {
     if (!loading && !isAdmin && !isOwner) {
-      router.replace("/");
+      router.replace("/")
     }
-  }, [loading, isAdmin, isOwner]);
+  }, [loading, isAdmin, isOwner])
 
   useEffect(() => {
     if (isAdmin || isOwner) {
@@ -243,7 +252,7 @@ export default function AdminAnalytics() {
           <p className="text-gray-500">You are not authorized to view this page.</p>
         </div>
       </Layout>
-    );
+    )
   }
 
   return (
@@ -252,10 +261,23 @@ export default function AdminAnalytics() {
         <title>Analytics - BejeweledByJoy</title>
         <meta name="description" content="Admin analytics for BejeweledByJoy." />
       </Head>
-      {/* Non-blocking spinner overlay during loading */}
-      {(loading || loadingAnalytics) && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {(loading || loadingAnalytics) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <p className="text-gray-500">Loading...</p>
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       <div className="py-6">

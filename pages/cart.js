@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Head from "next/head"
 import Image from "next/image"
 import Link from "next/link"
@@ -14,7 +14,15 @@ export default function Cart() {
   const { cart, loading, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false)
   const router = useRouter()
+
+  // Prevent spinner from blocking UI forever (fallback after 10s)
+  useEffect(() => {
+    if (!loading && !checkoutLoading) return
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
+    return () => clearTimeout(timeout)
+  }, [loading, checkoutLoading])
 
   const handleCheckout = async () => {
     try {
@@ -93,10 +101,23 @@ export default function Cart() {
         <meta name="description" content="View your shopping cart and proceed to checkout." />
       </Head>
 
-      {/* Non-blocking spinner overlay during loading or checkout */}
-      {(loading || checkoutLoading) && (
+      {/* Non-blocking spinner overlay during loading or checkout, with fallback */}
+      {(loading || checkoutLoading) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#7c3aed" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
 

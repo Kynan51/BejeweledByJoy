@@ -6,6 +6,7 @@ import Head from "next/head"
 import Link from "next/link"
 import Layout from "../../components/Layout"
 import supabase from "../../utils/supabaseClient"
+import { MoonLoader } from "react-spinners"
 
 export default function OrderConfirmation() {
   const router = useRouter()
@@ -15,12 +16,19 @@ export default function OrderConfirmation() {
   const [orderItems, setOrderItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false)
 
   useEffect(() => {
     if (id) {
       fetchOrderDetails()
     }
   }, [id])
+
+  useEffect(() => {
+    if (!loading) return
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
+    return () => clearTimeout(timeout)
+  }, [loading])
 
   async function fetchOrderDetails() {
     try {
@@ -73,10 +81,23 @@ export default function OrderConfirmation() {
         <title>Order Confirmation - BejeweledByJoy</title>
         <meta name="description" content="Order confirmation details." />
       </Head>
-      {/* Non-blocking spinner overlay during loading */}
-      {loading && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {loading && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <span className="sr-only">Loading...</span>
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       <div className="py-6">

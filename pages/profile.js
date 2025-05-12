@@ -7,7 +7,7 @@ import Link from "next/link"
 import Layout from "../components/Layout"
 import supabase from "../utils/supabaseClient"
 import Image from "next/image"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import { useAuth } from "../contexts/AuthContext"
 import { MoonLoader } from "react-spinners"
 
@@ -59,10 +59,8 @@ export default function Profile() {
     address: "",
   });
   const [activeTab, setActiveTab] = useState("profile");
-  const [ordersLoading, setOrdersLoading] = useState(false);
   const [addresses, setAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
-  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressFormData, setAddressFormData] = useState({
     name: "",
@@ -77,18 +75,27 @@ export default function Profile() {
   const { checkout } = router.query;
   const [wishlistPage, setWishlistPage] = useState(0);
   const [ordersPage, setOrdersPage] = useState(0);
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false);
 
-  const { data: wishlist, error: wishlistError } = useSWR(
+  // SWR for wishlist and orders
+  const { data: wishlist, error: wishlistError, isValidating: wishlistLoading } = useSWR(
     session?.user ? ["wishlist", session.user.id, wishlistPage] : null,
     () => fetchWishlistSWR(session.user.id, wishlistPage)
   );
-  const { data: orders, error: ordersError } = useSWR(
+  const { data: orders, error: ordersError, isValidating: ordersLoading } = useSWR(
     session?.user ? ["orders", session.user.id, ordersPage] : null,
     () => fetchOrdersSWR(session.user.id, ordersPage)
   );
 
   // Add a computed loading state for sub-tabs
   const isTabLoading = ordersLoading || wishlistLoading || addressesLoading;
+
+  // Prevent spinner from blocking UI forever (fallback after 10s)
+  useEffect(() => {
+    if (!loading && !userLoading && !isTabLoading) return;
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [loading, userLoading, isTabLoading]);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -111,178 +118,99 @@ export default function Profile() {
   async function fetchUserData(userId) {
     try {
       setUserLoading(true);
-      console.log("[DEBUG] Fetching user data for userId:", userId);
-
-      // Get user data from our users table
       const { data, error } = await supabase
         .from("users")
-        .select("id, full_name, phone, address, email") // Include email in the query
+        .select("id, full_name, phone, address, email")
         .eq("id", userId)
         .single();
-      console.log("[DEBUG] Supabase user data fetch result:", { data, error });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        // If data is an array (from Supabase), use the first element
-        const userData = Array.isArray(data) ? data[0] : data;
-        setUser(userData);
-        setFormData({
-          full_name: userData.full_name ?? "",
-          phone: userData.phone ?? "",
-          address: userData.address ?? "",
-          email: userData.email ?? "", // Update formData with email
-        });
-        console.log("[DEBUG] Setting formData:", {
-          full_name: userData.full_name ?? "",
-          phone: userData.phone ?? "",
-          address: userData.address ?? "",
-          email: userData.email ?? "", // Log email
-        });
-      }
+      if (error) throw error;
+      const userData = Array.isArray(data) ? data[0] : data;
+      setUser(userData);
+      setFormData({
+        full_name: userData.full_name ?? "",
+        phone: userData.phone ?? "",
+        address: userData.address ?? "",
+        email: userData.email ?? "",
+      });
     } catch (error) {
-      console.error("Error fetching user data:", error);
       setError("Failed to load user data. Please try again later.");
     } finally {
       setUserLoading(false);
     }
   }
 
-  async function fetchWishlist(page = 0) {
-    try {
-      setWishlistLoading(true)
-      const { data, error } = await supabase
-        .from("wishlists")
-        .select(`
-          id,
-          created_at,
-          products (
-            id,
-            name,
-            price,
-            discount,
-            image_urls
-          )
-        `)
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (error) throw error;
-      setWishlist(data || []);
-    } catch (error) {
-      console.error("Error fetching wishlist:", error);
-    } finally {
-      setWishlistLoading(false);
-    }
-  }
-
-  async function fetchOrders(page = 0) {
-    try {
-      setOrdersLoading(true)
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, created_at, total_amount, status")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (error) throw error;
-      setOrders(data || []);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setOrdersLoading(false);
-    }
-  }
-
   async function fetchAddresses() {
     try {
-      setAddressesLoading(true)
+      setAddressesLoading(true);
       const { data, error } = await supabase
         .from("saved_addresses")
-        .select("id, name, address, city, state, is_default")
+        .select("id, name, address, city, state, is_default, postal_code, country")
         .eq("user_id", session.user.id)
         .order("is_default", { ascending: false });
       if (error) throw error;
       setAddresses(data || []);
     } catch (error) {
-      console.error("Error fetching addresses:", error);
+      setError("Failed to load addresses. Please try again later.");
     } finally {
       setAddressesLoading(false);
     }
   }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    })
-  }
+    });
+  };
 
   const handleAddressInputChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value, type, checked } = e.target;
     setAddressFormData({
       ...addressFormData,
       [name]: type === "checkbox" ? checked : value,
-    })
-  }
+    });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-
+    e.preventDefault();
     try {
-      setFormLoading(true)
-      setError(null)
-      setMessage(null)
-      console.log('[DEBUG] Submitting profile update:', {
-        p_id: session.user.id,
-        p_email: user?.email || "",
-        p_full_name: formData.full_name,
-        p_address: formData.address,
-        p_phone: formData.phone || null
-      })
-      // Directly update the user profile in the users table
+      setFormLoading(true);
+      setError(null);
+      setMessage(null);
       const { error } = await supabase
         .from("users")
         .update({
           full_name: formData.full_name,
           address: formData.address,
           phone: formData.phone,
-          email: user?.email || ""
+          email: user?.email || "",
         })
         .eq("id", session.user.id);
-      console.log('[DEBUG] Supabase direct update response:', { error });
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       setMessage("Profile updated successfully!");
       if (checkout) {
         router.push("/cart");
       }
     } catch (error) {
-      console.error("Error updating profile:", error)
-      setError("Failed to update profile. Please try again. " )
+      setError("Failed to update profile. Please try again.");
     } finally {
-      setFormLoading(false)
+      setFormLoading(false);
     }
-  }
+  };
 
   const handleAddressSubmit = async (e) => {
-    e.preventDefault()
-
+    e.preventDefault();
     try {
-      setFormLoading(true)
-      setError(null)
-      setMessage(null)
-
-      // If setting as default, update all other addresses to not be default
+      setFormLoading(true);
+      setError(null);
+      setMessage(null);
       if (addressFormData.is_default) {
-        await supabase.from("saved_addresses").update({ is_default: false }).eq("user_id", session.user.id)
+        await supabase
+          .from("saved_addresses")
+          .update({ is_default: false })
+          .eq("user_id", session.user.id);
       }
-
-      // Add new address
       const { error } = await supabase.from("saved_addresses").insert([
         {
           user_id: session.user.id,
@@ -294,14 +222,10 @@ export default function Profile() {
           country: addressFormData.country,
           is_default: addressFormData.is_default,
         },
-      ])
-
-      if (error) {
-        throw error
-      }
-
-      setMessage("Address added successfully!")
-      setShowAddressForm(false)
+      ]);
+      if (error) throw error;
+      setMessage("Address added successfully!");
+      setShowAddressForm(false);
       setAddressFormData({
         name: "",
         address: "",
@@ -310,64 +234,56 @@ export default function Profile() {
         postal_code: "",
         country: "Kenya",
         is_default: false,
-      })
-
-      // Refresh addresses
-      fetchAddresses()
+      });
+      fetchAddresses();
     } catch (error) {
-      console.error("Error adding address:", error)
-      setError("Failed to add address. Please try again.")
+      setError("Failed to add address. Please try again.");
     } finally {
-      setFormLoading(false)
+      setFormLoading(false);
     }
-  }
+  };
 
   const handleSetDefaultAddress = async (addressId) => {
     try {
-      // Update all addresses to not be default
-      await supabase.from("saved_addresses").update({ is_default: false }).eq("user_id", session.user.id)
-
-      // Set selected address as default
-      await supabase.from("saved_addresses").update({ is_default: true }).eq("id", addressId)
-
-      // Refresh addresses
-      fetchAddresses()
+      await supabase
+        .from("saved_addresses")
+        .update({ is_default: false })
+        .eq("user_id", session.user.id);
+      await supabase
+        .from("saved_addresses")
+        .update({ is_default: true })
+        .eq("id", addressId);
+      fetchAddresses();
     } catch (error) {
-      console.error("Error setting default address:", error)
+      setError("Failed to set default address.");
     }
-  }
+  };
 
   const handleDeleteAddress = async (addressId) => {
     try {
-      // Delete address
-      await supabase.from("saved_addresses").delete().eq("id", addressId)
-
-      // Refresh addresses
-      fetchAddresses()
+      await supabase.from("saved_addresses").delete().eq("id", addressId);
+      fetchAddresses();
     } catch (error) {
-      console.error("Error deleting address:", error)
+      setError("Failed to delete address.");
     }
-  }
+  };
 
   const handleRemoveFromWishlist = async (wishlistId) => {
     try {
-      // Delete wishlist item
-      await supabase.from("wishlists").delete().eq("id", wishlistId)
-
-      // Refresh wishlist
-      fetchWishlist()
+      await supabase.from("wishlists").delete().eq("id", wishlistId);
+      mutate(["wishlist", session.user.id, wishlistPage]);
     } catch (error) {
-      console.error("Error removing from wishlist:", error)
+      setError("Error removing from wishlist.");
     }
-  }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('userRoleCache');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("userRoleCache");
     }
     router.push("/");
-  }
+  };
 
   return (
     <Layout>
@@ -375,19 +291,30 @@ export default function Profile() {
         <title>Profile - BejeweledByJoy</title>
         <meta name="description" content="Your profile and order history." />
       </Head>
-      {/* Show error if user data fails to load */}
       {error && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
-          <div className="bg-white p-6 rounded shadow text-red-600 text-center">
-            {error}
-            <button onClick={() => window.location.reload()} className="block mt-4 px-4 py-2 bg-purple-600 text-white rounded">Retry</button>
-          </div>
+        <div
+          className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
+          <span className="block sm:inline">{error}</span>
         </div>
       )}
-      {/* Non-blocking spinner overlay during loading or sub-tab loading, only if no error */}
-      {!error && (loading || userLoading || isTabLoading) && (
+      {!error && (loading || userLoading || isTabLoading) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       <div className="py-6">
@@ -397,7 +324,6 @@ export default function Profile() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
           <div className="flex flex-col md:flex-row">
-            {/* Sidebar */}
             <div className="md:w-64 md:mr-8 mb-6 md:mb-0">
               <nav className="space-y-1">
                 <button
@@ -529,7 +455,6 @@ export default function Profile() {
               </nav>
             </div>
 
-            {/* Main content */}
             <div className="flex-1">
               {error && (
                 <div
@@ -549,16 +474,20 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Profile Tab */}
               {activeTab === "profile" && (
                 <div className="bg-white shadow rounded-lg overflow-hidden">
                   <div className="px-4 py-5 sm:p-6">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">
+                      Profile Information
+                    </h2>
 
                     <form onSubmit={handleSubmit}>
                       <div className="space-y-6">
                         <div>
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="email"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Email address
                           </label>
                           <div className="mt-1">
@@ -571,11 +500,16 @@ export default function Profile() {
                               className="bg-gray-50 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
                             />
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Email cannot be changed
+                          </p>
                         </div>
 
                         <div>
-                          <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="full_name"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Full Name
                           </label>
                           <div className="mt-1">
@@ -591,7 +525,10 @@ export default function Profile() {
                         </div>
 
                         <div>
-                          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="phone"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Phone Number
                           </label>
                           <div className="mt-1">
@@ -607,7 +544,10 @@ export default function Profile() {
                         </div>
 
                         <div>
-                          <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                          <label
+                            htmlFor="address"
+                            className="block text-sm font-medium text-gray-700"
+                          >
                             Address
                           </label>
                           <div className="mt-1">
@@ -637,11 +577,12 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Orders Tab */}
               {activeTab === "orders" && (
                 <div className="bg-white shadow rounded-lg overflow-hidden">
                   <div className="px-4 py-5 sm:p-6">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Order History</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">
+                      Order History
+                    </h2>
 
                     {ordersLoading ? (
                       <div className="flex justify-center items-center h-40">
@@ -649,26 +590,40 @@ export default function Profile() {
                       </div>
                     ) : orders?.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-gray-500 mb-4">You haven't placed any orders yet.</p>
-                        <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        <p className="text-gray-500 mb-4">
+                          You haven't placed any orders yet.
+                        </p>
+                        <Link
+                          href="/"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                        >
                           Start Shopping
                         </Link>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {orders?.map((order) => (
-                          <div key={order.id} className="border rounded-lg overflow-hidden">
+                          <div
+                            key={order.id}
+                            className="border rounded-lg overflow-hidden"
+                          >
                             <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
                               <div>
-                                <span className="text-xs text-gray-500">Order ID:</span>
+                                <span className="text-xs text-gray-500">
+                                  Order ID:
+                                </span>
                                 <span className="ml-2 text-sm font-medium">
                                   {order.id.substring(0, 8).toUpperCase()}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-xs text-gray-500">Date:</span>
+                                <span className="text-xs text-gray-500">
+                                  Date:
+                                </span>
                                 <span className="ml-2 text-sm font-medium">
-                                  {new Date(order.created_at).toLocaleDateString()}
+                                  {new Date(
+                                    order.created_at
+                                  ).toLocaleDateString()}
                                 </span>
                               </div>
                               <div>
@@ -677,11 +632,12 @@ export default function Profile() {
                                     order.status === "completed"
                                       ? "bg-green-100 text-green-800"
                                       : order.status === "shipped"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-yellow-100 text-yellow-800"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-yellow-100 text-yellow-800"
                                   }`}
                                 >
-                                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                  {order.status.charAt(0).toUpperCase() +
+                                    order.status.slice(1)}
                                 </span>
                               </div>
                             </div>
@@ -691,7 +647,10 @@ export default function Profile() {
                                   Total: Ksh{order.total_amount.toFixed(2)}
                                 </span>
                               </div>
-                              <Link href={`/order-confirmation/${order.id}`} className="text-sm font-medium text-purple-600 hover:text-purple-500">
+                              <Link
+                                href={`/order-confirmation/${order.id}`}
+                                className="text-sm font-medium text-purple-600 hover:text-purple-500"
+                              >
                                 View Details
                               </Link>
                             </div>
@@ -703,14 +662,17 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Addresses Tab */}
               {activeTab === "addresses" && (
                 <div className="bg-white shadow rounded-lg overflow-hidden">
                   <div className="px-4 py-5 sm:p-6">
                     <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-medium text-gray-900">Saved Addresses</h2>
+                      <h2 className="text-lg font-medium text-gray-900">
+                        Saved Addresses
+                      </h2>
                       <button
-                        onClick={() => setShowAddressForm(!showAddressForm)}
+                        onClick={() =>
+                          setShowAddressForm(!showAddressForm)
+                        }
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                       >
                         {showAddressForm ? "Cancel" : "Add Address"}
@@ -719,11 +681,16 @@ export default function Profile() {
 
                     {showAddressForm && (
                       <div className="mb-6 border rounded-lg p-4">
-                        <h3 className="text-md font-medium text-gray-900 mb-4">Add New Address</h3>
+                        <h3 className="text-md font-medium text-gray-900 mb-4">
+                          Add New Address
+                        </h3>
                         <form onSubmit={handleAddressSubmit}>
                           <div className="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-2">
                             <div className="sm:col-span-2">
-                              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="name"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 Address Name
                               </label>
                               <div className="mt-1">
@@ -741,7 +708,10 @@ export default function Profile() {
                             </div>
 
                             <div className="sm:col-span-2">
-                              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="address"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 Street Address
                               </label>
                               <div className="mt-1">
@@ -758,7 +728,10 @@ export default function Profile() {
                             </div>
 
                             <div>
-                              <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="city"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 City
                               </label>
                               <div className="mt-1">
@@ -775,7 +748,10 @@ export default function Profile() {
                             </div>
 
                             <div>
-                              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="state"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 State / Province
                               </label>
                               <div className="mt-1">
@@ -792,7 +768,10 @@ export default function Profile() {
                             </div>
 
                             <div>
-                              <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="postal_code"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 Postal Code
                               </label>
                               <div className="mt-1">
@@ -809,7 +788,10 @@ export default function Profile() {
                             </div>
 
                             <div>
-                              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                              <label
+                                htmlFor="country"
+                                className="block text-sm font-medium text-gray-700"
+                              >
                                 Country
                               </label>
                               <div className="mt-1">
@@ -838,7 +820,10 @@ export default function Profile() {
                                   onChange={handleAddressInputChange}
                                   className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                                 />
-                                <label htmlFor="is_default" className="ml-2 block text-sm text-gray-700">
+                                <label
+                                  htmlFor="is_default"
+                                  className="ml-2 block text-sm text-gray-700"
+                                >
                                   Set as default address
                                 </label>
                               </div>
@@ -864,7 +849,9 @@ export default function Profile() {
                       </div>
                     ) : addresses.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-gray-500 mb-4">You don't have any saved addresses yet.</p>
+                        <p className="text-gray-500 mb-4">
+                          You don't have any saved addresses yet.
+                        </p>
                         <button
                           onClick={() => setShowAddressForm(true)}
                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -875,10 +862,15 @@ export default function Profile() {
                     ) : (
                       <div className="space-y-4">
                         {addresses.map((address) => (
-                          <div key={address.id} className="border rounded-lg overflow-hidden">
+                          <div
+                            key={address.id}
+                            className="border rounded-lg overflow-hidden"
+                          >
                             <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
                               <div className="flex items-center">
-                                <span className="font-medium text-gray-900">{address.name}</span>
+                                <span className="font-medium text-gray-900">
+                                  {address.name}
+                                </span>
                                 {address.is_default && (
                                   <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     Default
@@ -888,14 +880,18 @@ export default function Profile() {
                               <div className="flex space-x-2">
                                 {!address.is_default && (
                                   <button
-                                    onClick={() => handleSetDefaultAddress(address.id)}
+                                    onClick={() =>
+                                      handleSetDefaultAddress(address.id)
+                                    }
                                     className="text-sm text-purple-600 hover:text-purple-500"
                                   >
                                     Set as Default
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => handleDeleteAddress(address.id)}
+                                  onClick={() =>
+                                    handleDeleteAddress(address.id)
+                                  }
                                   className="text-sm text-red-600 hover:text-red-500"
                                 >
                                   Delete
@@ -903,11 +899,16 @@ export default function Profile() {
                               </div>
                             </div>
                             <div className="px-4 py-3">
-                              <p className="text-sm text-gray-600">{address.address}</p>
                               <p className="text-sm text-gray-600">
-                                {address.city}, {address.state} {address.postal_code}
+                                {address.address}
                               </p>
-                              <p className="text-sm text-gray-600">{address.country}</p>
+                              <p className="text-sm text-gray-600">
+                                {address.city}, {address.state}{" "}
+                                {address.postal_code}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {address.country}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -917,11 +918,12 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Wishlist Tab */}
               {activeTab === "wishlist" && (
                 <div className="bg-white shadow rounded-lg overflow-hidden">
                   <div className="px-4 py-5 sm:p-6">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">My Wishlist</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">
+                      My Wishlist
+                    </h2>
 
                     {wishlistLoading ? (
                       <div className="flex justify-center items-center h-40">
@@ -929,19 +931,32 @@ export default function Profile() {
                       </div>
                     ) : wishlist?.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-gray-500 mb-4">Your wishlist is empty.</p>
-                        <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        <p className="text-gray-500 mb-4">
+                          Your wishlist is empty.
+                        </p>
+                        <Link
+                          href="/"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                        >
                           Explore Products
                         </Link>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
                         {wishlist?.map((item) => (
-                          <Link key={item.id} href={`/product/${item.products.id}`} className="group relative block focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg">
+                          <Link
+                            key={item.id}
+                            href={`/product/${item.products.id}`}
+                            className="group relative block focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg"
+                          >
                             <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 group-hover:opacity-75">
-                              {item.products.image_urls && item.products.image_urls.length > 0 ? (
+                              {item.products.image_urls &&
+                              item.products.image_urls.length > 0 ? (
                                 <Image
-                                  src={item.products.image_urls[0] || "/placeholder.svg"}
+                                  src={
+                                    item.products.image_urls[0] ||
+                                    "/placeholder.svg"
+                                  }
                                   alt={item.products.name}
                                   layout="fill"
                                   objectFit="cover"
@@ -950,22 +965,34 @@ export default function Profile() {
                                 />
                               ) : (
                                 <div className="h-full w-full flex items-center justify-center">
-                                  <span className="text-gray-500">No image</span>
+                                  <span className="text-gray-500">
+                                    No image
+                                  </span>
                                 </div>
                               )}
                             </div>
                             <div className="mt-4 flex justify-between">
                               <div>
-                                <h3 className="text-sm text-gray-700">{item.products.name}</h3>
+                                <h3 className="text-sm text-gray-700">
+                                  {item.products.name}
+                                </h3>
                                 <p className="mt-1 text-sm text-gray-500">
-                                  Added on {new Date(item.created_at).toLocaleDateString()}
+                                  Added on{" "}
+                                  {new Date(
+                                    item.created_at
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
-                              <p className="text-sm font-medium text-gray-900">Ksh{item.products.price.toFixed(2)}</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                Ksh{item.products.price.toFixed(2)}
+                              </p>
                             </div>
                             <div className="mt-2 flex justify-between">
                               <button
-                                onClick={e => { e.preventDefault(); handleRemoveFromWishlist(item.id); }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleRemoveFromWishlist(item.id);
+                                }}
                                 className="text-sm text-red-600 hover:text-red-500"
                               >
                                 Remove
@@ -983,5 +1010,5 @@ export default function Profile() {
         </div>
       </div>
     </Layout>
-  )
+  );
 }

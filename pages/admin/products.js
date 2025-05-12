@@ -11,6 +11,7 @@ import supabase from "../../utils/supabaseClient"
 import imageCompression from "browser-image-compression"
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role"
+import { MoonLoader } from "react-spinners"
 
 export default function AdminProducts() {
   const { session, loading } = useAuth();
@@ -18,6 +19,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState(null); // 'add' | 'edit' | 'delete'
   const [currentProduct, setCurrentProduct] = useState({
     id: null,
     name: "",
@@ -31,6 +33,7 @@ export default function AdminProducts() {
   const [isUploading, setIsUploading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [spinnerTimeout, setSpinnerTimeout] = useState(false);
   const PAGE_SIZE = 20;
 
   const userEmail = session?.user?.email || null;
@@ -50,6 +53,13 @@ export default function AdminProducts() {
       fetchProducts();
     }
   }, [isAdmin, isOwner]);
+
+  // Prevent spinner from blocking UI forever (fallback after 10s)
+  useEffect(() => {
+    if (!loading && !loadingProducts) return;
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
+    return () => clearTimeout(timeout);
+  }, [loading, loadingProducts]);
 
   async function fetchProducts(page = 0) {
     try {
@@ -80,28 +90,57 @@ export default function AdminProducts() {
     });
     setUploadedImages([]);
     setFormError(null);
+    setModalMode('add');
     setIsModalOpen(true);
   };
 
-  const openEditModal = (product) => {
-    setCurrentProduct({
-      id: product.id,
-      name: product.name,
-      description: product.description || "",
-      price: product.price,
-      discount: product.discount || 0,
-      image_urls: (product.image_urls || []).filter(
-        (url) => url && url !== "null" && url !== "undefined"
-      ),
-      quantity: product.quantity || 0,
-    });
-    setUploadedImages([]);
-    setFormError(null);
+  const openEditModal = async (product) => {
+    try {
+      console.log('[DEBUG] openEditModal called with:', product);
+      setLoadingProducts(true);
+      // Fetch latest product details from the database
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, description, price, discount, image_urls, quantity")
+        .eq("id", product.id)
+        .maybeSingle(); // Use maybeSingle to always get an object or null
+      if (error) throw error;
+      if (!data) throw new Error('Product not found');
+      console.log('[DEBUG] Fetched product from DB:', data);
+      setCurrentProduct({
+        id: data.id,
+        name: data.name,
+        description: data.description || "",
+        price: data.price,
+        discount: data.discount || 0,
+        image_urls: (data.image_urls || []).filter((url) => url && url !== "null" && url !== "undefined"),
+        quantity: data.quantity || 0,
+      });
+      setUploadedImages([]);
+      setFormError(null);
+      setModalMode('edit');
+      setIsModalOpen(true);
+      setTimeout(() => {
+        console.log('[DEBUG] currentProduct after set:', currentProduct);
+      }, 100);
+    } catch (err) {
+      setFormError("Failed to fetch latest product details.");
+      console.error('[DEBUG] Error in openEditModal:', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const openDeleteModal = (productId) => {
+    setProductToDelete(productId);
+    setModalMode('delete');
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setModalMode(null);
+    setProductToDelete(null);
   };
 
   const handleInputChange = (e) => {
@@ -285,16 +324,6 @@ export default function AdminProducts() {
     }
   };
 
-  const openDeleteModal = (productId) => {
-    setProductToDelete(productId);
-    setIsModalOpen(true);
-  };
-
-  const closeDeleteModal = () => {
-    setIsModalOpen(false);
-    setProductToDelete(null);
-  };
-
   const confirmDeleteProduct = async () => {
     if (!productToDelete) return;
 
@@ -312,7 +341,7 @@ export default function AdminProducts() {
       console.error("Error deleting product:", error);
       alert("Error deleting product. Please try again.");
     } finally {
-      closeDeleteModal();
+      closeModal();
     }
   };
 
@@ -332,10 +361,23 @@ export default function AdminProducts() {
         <title>Manage Products - Jewelry Store</title>
         <meta name="description" content="Admin product management for Jewelry Store." />
       </Head>
-      {/* Non-blocking spinner overlay during loading */}
-      {(loading || loadingProducts) && (
+      {/* Non-blocking spinner overlay during loading, with fallback */}
+      {(loading || loadingProducts) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <p className="text-gray-500">Loading...</p>
+          <MoonLoader color="#a855f7" size={48} />
+        </div>
+      )}
+      {spinnerTimeout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            Something went wrong. Please try refreshing the page.
+            <button
+              onClick={() => { window.location.href = window.location.href; }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
       <div className="py-6">
@@ -392,7 +434,7 @@ export default function AdminProducts() {
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-white shadow rounded-lg overflow-hidden">
+                  <div className="bg-white shadow rounded-lg overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -507,22 +549,179 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      {isModalOpen && productToDelete && (
-        <Modal isOpen={isModalOpen} onClose={closeDeleteModal}>
-          <p>Are you sure you want to delete this product?</p>
-          <button
-            onClick={confirmDeleteProduct}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            Yes, Delete
-          </button>
-          <button
-            onClick={closeDeleteModal}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-          >
-            Cancel
-          </button>
-        </Modal>
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center">
+          {/* Overlay to gray out the entire page including header */}
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1200] pointer-events-auto" />
+          {/* Modal content for delete or edit */}
+          <div className="fixed inset-0 flex items-center justify-center z-[1201] pointer-events-none">
+            <div className="pointer-events-auto">
+              {modalMode === 'delete' && productToDelete ? (
+                <Modal isOpen={isModalOpen} onClose={closeModal}>
+                  <div className="text-lg font-bold mb-2 text-red-700 text-center">Delete Product</div>
+                  <div className="mb-4 text-center">Are you sure you want to delete this product? This action cannot be undone.</div>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold shadow"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDeleteProduct}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold shadow"
+                    >
+                      Yes, Delete
+                    </button>
+                  </div>
+                </Modal>
+              ) : (
+                <Modal
+                  isOpen={isModalOpen}
+                  onClose={closeModal}
+                >
+                  {console.log('[DEBUG] Modal render, currentProduct:', currentProduct)}
+                  <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] sm:max-h-[80vh] overflow-y-auto p-2 w-[95vw] max-w-md sm:max-w-xl mx-auto rounded-lg bg-white z-[1201]">
+                    <h2 className="text-lg font-bold mb-2 text-center">{modalMode === 'edit' ? 'Edit Product' : 'Add Product'}</h2>
+                    {formError && <div className="text-red-600 text-sm mb-2">{formError}</div>}
+                    <div className="flex flex-col gap-4">
+                      <label className="font-medium">Product Name
+                        <input
+                          type="text"
+                          name="name"
+                          value={currentProduct.name}
+                          onChange={handleInputChange}
+                          placeholder="Product Name"
+                          className="w-full border rounded px-3 py-2 mt-1"
+                          required
+                        />
+                      </label>
+                      <label className="font-medium">Description
+                        <textarea
+                          name="description"
+                          value={currentProduct.description}
+                          onChange={handleInputChange}
+                          placeholder="Description"
+                          className="w-full border rounded px-3 py-2 mt-1"
+                          rows={3}
+                        />
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className="flex-1 font-medium">Price (Ksh)
+                          <input
+                            type="number"
+                            name="price"
+                            value={currentProduct.price}
+                            onChange={handleInputChange}
+                            placeholder="Price"
+                            className="w-full border rounded px-3 py-2 mt-1"
+                            min="0"
+                            step="0.01"
+                            required
+                          />
+                        </label>
+                        <label className="flex-1 font-medium">Discount (%)
+                          <input
+                            type="number"
+                            name="discount"
+                            value={currentProduct.discount}
+                            onChange={handleInputChange}
+                            placeholder="Discount (%)"
+                            className="w-full border rounded px-3 py-2 mt-1"
+                            min="0"
+                            max="100"
+                          />
+                        </label>
+                        <label className="flex-1 font-medium">Quantity
+                          <input
+                            type="number"
+                            name="quantity"
+                            value={currentProduct.quantity}
+                            onChange={handleInputChange}
+                            placeholder="Quantity"
+                            className="w-full border rounded px-3 py-2 mt-1"
+                            min="0"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    {/* Images Preview Section with drag-and-drop and remove */}
+                    <div className="mt-4">
+                      <div className="font-semibold mb-2">Product Images</div>
+                      <div
+                        className="flex flex-wrap gap-2 justify-center border-2 border-dashed border-gray-300 rounded p-2 min-h-[90px] relative"
+                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+                          if (files.length > 0) handleImageUpload({ target: { files } });
+                        }}
+                      >
+                        {/* Existing images from DB */}
+                        {currentProduct.image_urls && currentProduct.image_urls.length > 0 && currentProduct.image_urls.map((url, idx) => (
+                          <div key={idx} className="relative w-20 h-20 border rounded overflow-hidden bg-gray-100 flex items-center justify-center group">
+                            <img src={url} alt={`Product image ${idx + 1}`} className="object-cover w-full h-full" />
+                            <button
+                              type="button"
+                              onClick={() => removeExistingImage(idx)}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-80 hover:opacity-100 z-10"
+                              title="Remove image"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                        {/* Newly uploaded images */}
+                        {uploadedImages && uploadedImages.length > 0 && uploadedImages.map((img, idx) => (
+                          <div key={idx + 'upload'} className="relative w-20 h-20 border rounded overflow-hidden bg-gray-100 flex items-center justify-center group">
+                            <img src={img.previewUrl} alt={`Uploaded preview ${idx + 1}`} className="object-cover w-full h-full" />
+                            <button
+                              type="button"
+                              onClick={() => removeUploadedImage(idx)}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-80 hover:opacity-100 z-10"
+                              title="Remove image"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                        {/* Add more images button */}
+                        <label className="w-20 h-20 border-2 border-dashed border-gray-400 rounded flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:border-purple-500 hover:text-purple-600 transition-colors">
+                          <span className="text-2xl">+</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleImageUpload}
+                          />
+                        </label>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 text-center">Drag and drop or click + to add images. Max 5MB each.</div>
+                    </div>
+                    <div className="flex justify-end gap-4 mt-4">
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold shadow"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isUploading}
+                        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold shadow disabled:opacity-50"
+                      >
+                        {isUploading ? 'Saving...' : (modalMode === 'edit' ? 'Save Changes' : 'Add Product')}
+                      </button>
+                    </div>
+                  </form>
+                </Modal>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </Layout>
   );
