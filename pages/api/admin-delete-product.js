@@ -10,19 +10,29 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // TODO: Replace with real admin authentication logic
   const { id } = req.body;
   if (!id) {
     return res.status(400).json({ error: 'Missing product id' });
   }
 
-  const { data, error } = await supabase
+  // Delete associated rows in the views table
+  const { error: viewsError } = await supabase
+    .from('views')
+    .delete()
+    .eq('product_id', id);
+
+  if (viewsError) {
+    return res.status(500).json({ error: viewsError.message });
+  }
+
+  // Delete the product
+  const { data, error: productError } = await supabase
     .from('products')
     .delete()
     .eq('id', id);
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+  if (productError) {
+    return res.status(500).json({ error: productError.message });
   }
 
   return res.status(200).json({ data });
