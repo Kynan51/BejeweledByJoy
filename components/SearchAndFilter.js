@@ -98,10 +98,10 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
                 </div>
               </div>
             </div>
-            <div>
+            <div className="flex flex-row space-x-2 w-4/5 md:w-auto mt-3 md:mt-0">
               <button
                 type="button"
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-40% md:w-auto"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 <svg
@@ -119,11 +119,9 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
                 </svg>
                 Filters
               </button>
-            </div>
-            <div>
               <button
                 type="submit"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-40% md:w-auto"
               >
                 Search
               </button>
