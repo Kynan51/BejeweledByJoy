@@ -7,6 +7,7 @@ import supabase from "../utils/supabaseClient"
 import WhatsAppButton from "./WhatsAppButton"
 import AdminTabsNav from "./AdminTabsNav"
 import { useAuth } from "../contexts/AuthContext"
+import FooterContacts from "./FooterContacts"
 
 export default function Layout({ children }) {
   const { session, isAdmin, isOwner, loading } = useAuth();
@@ -37,7 +38,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white shadow-md">
+      <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -150,6 +151,7 @@ export default function Layout({ children }) {
           <p className="text-center text-gray-500 text-sm">
             &copy; {new Date().getFullYear()} BejeweledByJoy. All rights reserved.
           </p>
+          <FooterContacts />
         </div>
       </footer>
       <WhatsAppButton />

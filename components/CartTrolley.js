@@ -42,9 +42,13 @@ export default function CartTrolley() {
         className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3 shadow-lg transition-all duration-200 flex items-center justify-center mb-2 relative"
         aria-label="View cart"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25A3.75 3.75 0 0011.25 18h1.5a3.75 3.75 0 003.75-3.75V6.75A3.75 3.75 0 0012.75 3h-1.5A3.75 3.75 0 007.5 6.75v7.5z" />
-        </svg>
+        <Image
+          src="/294547-white.svg"
+          alt="Cart Trolley"
+          width={32}
+          height={32}
+          className="w-7 h-7"
+        />
         {itemCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
             {itemCount}

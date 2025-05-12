@@ -1,0 +1,13 @@
+[33m6257684[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Added placeholder contact information in the footer
+[33mdacf2c0[m Created an about us page
+[33mb3a3705[m fixed wishlist bug
+[33mc99bb18[m Updated analytics logic
+[33me987286[m Updated styles in the Admin Dashboard
+[33mfb7d8b6[m Improved Owner admin privileges and addition of other admin logic
+[33m2307f92[m Optimized login sessions
+[33m3c17a05[m Updated the currency to Kenya Shillings
+[33m748b594[m Fixed Updating profile bug
+[33m69ae913[m Fixed prefilling of profile information
+[33m932e866[m Added Limit Error Handling
+[33m188c784[m Fixed picture upload problem in admin, changed header layout too
+[33m8f4c60e[m first commit
