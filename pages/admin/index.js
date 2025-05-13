@@ -37,6 +37,25 @@ export default function AdminDashboard() {
     return () => clearTimeout(timeout);
   }, [loading]);
 
+  useEffect(() => {
+    if (!loading && (isAdmin || isOwner)) {
+      // Fetch dashboard stats from API
+      fetch("/api/admin-dashboard-stats")
+        .then((res) => res.json())
+        .then((data) => {
+          setStats({
+            totalProducts: data.totalProducts || 0,
+            totalViews: data.totalViews || 0,
+            mostViewedProducts: data.mostViewedProducts || [],
+          });
+        })
+        .catch((err) => {
+          // Optionally handle error
+          setStats({ totalProducts: 0, totalViews: 0, mostViewedProducts: [] });
+        });
+    }
+  }, [loading, isAdmin, isOwner]);
+
   if (!(isAdmin || isOwner)) {
     return null;
   }

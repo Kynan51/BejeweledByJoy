@@ -130,19 +130,19 @@ export default function OrderConfirmation() {
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Order Number:</span>
-                  <span className="font-medium">{order.id.substring(0, 8).toUpperCase()}</span>
+                  <span className="font-medium">{order ? order.id?.substring(0, 8)?.toUpperCase() : "-"}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Date:</span>
-                  <span className="font-medium">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <span className="font-medium">{order ? new Date(order.created_at).toLocaleDateString() : "-"}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Total Amount:</span>
-                  <span className="font-medium">Ksh{order.total_amount.toFixed(2)}</span>
+                  <span className="font-medium">Ksh{order ? order.total_amount?.toFixed(2) : "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Status:</span>
-                  <span className="font-medium capitalize">{order.status}</span>
+                  <span className="font-medium capitalize">{order ? order.status : "-"}</span>
                 </div>
               </div>
 

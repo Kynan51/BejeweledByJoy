@@ -9,6 +9,7 @@ import supabase from "../../utils/supabaseClient"
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role"
 import { MoonLoader } from "react-spinners"
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 export default function AdminAnalytics() {
   const { session, loading } = useAuth()
@@ -56,26 +57,31 @@ export default function AdminAnalytics() {
 
       // Calculate date range
       const now = new Date()
-      let startDate
+      let startDate, endDate
 
       if (timeRange === "week") {
         startDate = new Date(now)
-        startDate.setDate(now.getDate() - 7)
+        startDate.setDate(now.getDate() - now.getDay()) // Sunday of this week
+        endDate = new Date(startDate)
+        endDate.setDate(startDate.getDate() + 6) // Saturday of this week
       } else if (timeRange === "month") {
-        startDate = new Date(now)
-        startDate.setMonth(now.getMonth() - 1)
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1) // 1st of current month
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0) // last day of current month
       } else if (timeRange === "year") {
-        startDate = new Date(now)
-        startDate.setFullYear(now.getFullYear() - 1)
+        startDate = new Date(now.getFullYear(), 0, 1) // Jan 1st
+        endDate = new Date(now.getFullYear(), 11, 31) // Dec 31st
       }
 
       const startDateStr = startDate.toISOString()
+      // Add 1 day to endDate to make .lt() exclusive
+      const endDateStr = new Date(endDate.getTime() + 24*60*60*1000).toISOString()
 
       // Get total views in time range
       const { data: viewsData, error: viewsError } = await supabase
         .from("views")
         .select("id", { count: "exact" })
         .gte("viewed_at", startDateStr)
+        .lt("viewed_at", endDateStr)
 
       if (viewsError) throw viewsError
 
@@ -84,6 +90,7 @@ export default function AdminAnalytics() {
         .from("views")
         .select("viewed_at")
         .gte("viewed_at", startDateStr)
+        .lt("viewed_at", endDateStr)
         .order("viewed_at", { ascending: true })
 
       if (viewsByDayError) throw viewsByDayError
@@ -126,6 +133,7 @@ export default function AdminAnalytics() {
         .from("views")
         .select("user_agent")
         .gte("viewed_at", startDateStr)
+        .lt("viewed_at", endDateStr)
 
       if (viewsByDeviceError) throw viewsByDeviceError
 
@@ -137,6 +145,7 @@ export default function AdminAnalytics() {
         .from("order_items")
         .select("product_id, sum:quantity")
         .gte("created_at", startDateStr)
+        .lt("created_at", endDateStr)
         .order("sum", { ascending: false })
         .limit(5)
 
@@ -177,42 +186,77 @@ export default function AdminAnalytics() {
   }
 
   function processViewsByDay(viewsData, timeRange) {
-    if (!viewsData || viewsData.length === 0) return []
-
-    const viewsByDay = {}
-    const dateFormat = { weekday: "short", month: "short", day: "numeric" }
-
-    // Initialize all days in the range
-    const now = new Date()
-    let days = 7
-
-    if (timeRange === "month") {
-      days = 30
-    } else if (timeRange === "year") {
-      days = 365
-    }
-
-    for (let i = 0; i < days; i++) {
-      const date = new Date(now)
-      date.setDate(now.getDate() - i)
-      const dateStr = date.toLocaleDateString("en-US", dateFormat)
-      viewsByDay[dateStr] = 0
-    }
-
-    // Count views for each day
-    viewsData.forEach((view) => {
-      const viewDate = new Date(view.viewed_at)
-      const dateStr = viewDate.toLocaleDateString("en-US", dateFormat)
-
-      if (viewsByDay[dateStr] !== undefined) {
-        viewsByDay[dateStr]++
+    if (!viewsData || viewsData.length === 0) return [];
+    const now = new Date();
+    if (timeRange === "week") {
+      const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      // Find last Sunday
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - now.getDay());
+      // Build a map for this week
+      const dayMap = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(lastSunday);
+        d.setDate(lastSunday.getDate() + i);
+        const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+        dayMap[key] = 0;
       }
-    })
-
-    // Convert to array for chart
-    return Object.entries(viewsByDay)
-      .map(([date, count]) => ({ date, count }))
-      .reverse()
+      viewsData.forEach((view) => {
+        const d = new Date(view.viewed_at);
+        const key = d.toISOString().slice(0, 10);
+        if (dayMap[key] !== undefined) dayMap[key]++;
+      });
+      return weekDays.map((day, i) => {
+        const d = new Date(lastSunday);
+        d.setDate(lastSunday.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        return {
+          date: key,
+          label: day, // Short label for mobile
+          count: dayMap[key],
+          fullDate: d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+        };
+      });
+    } else if (timeRange === "month") {
+      // Return an array for each day of the current month
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dayMap = {};
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(year, month, i);
+        const key = d.toISOString().slice(0, 10);
+        dayMap[key] = 0;
+      }
+      viewsData.forEach((view) => {
+        const d = new Date(view.viewed_at);
+        const key = d.toISOString().slice(0, 10);
+        if (dayMap[key] !== undefined) dayMap[key]++;
+      });
+      return Object.keys(dayMap).map((key) => ({
+        date: key,
+        count: dayMap[key],
+        label: new Date(key).getDate().toString(),
+        fullDate: new Date(key).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+      }));
+    } else if (timeRange === "year") {
+      // Return an array for each month of the current year
+      const year = now.getFullYear();
+      const monthMap = Array(12).fill(0);
+      viewsData.forEach((view) => {
+        const d = new Date(view.viewed_at);
+        if (d.getFullYear() === year) {
+          monthMap[d.getMonth()]++;
+        }
+      });
+      return monthMap.map((count, i) => ({
+        date: new Date(year, i, 1).toISOString().slice(0, 10),
+        count,
+        label: new Date(year, i, 1).toLocaleString("en-US", { month: "short" }),
+        month: new Date(year, i, 1).toLocaleString("en-US", { month: "long" })
+      }));
+    }
+    return [];
   }
 
   function processViewsByDevice(viewsData) {
@@ -243,6 +287,49 @@ export default function AdminAnalytics() {
       .map(([device, count]) => ({ device, count }))
       .filter((item) => item.count > 0)
       .sort((a, b) => b.count - a.count)
+  }
+
+  function getChartData(viewsByDay, timeRange) {
+    if (!Array.isArray(viewsByDay)) return [];
+    return viewsByDay.filter(d => d && typeof d === 'object' && d.label !== undefined).map((d) => {
+      if (timeRange === "year") {
+        return { label: d.label, count: d.count, month: d.month };
+      } else if (timeRange === "month") {
+        return { label: d.label, count: d.count, fullDate: d.fullDate };
+      } else {
+        return { label: d.label, count: d.count, fullDate: d.fullDate };
+      }
+    });
+  }
+
+  function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload || !payload.length) return null;
+    const data = payload[0].payload;
+    if (data.range) {
+      // Month view
+      return (
+        <div className="bg-white p-2 rounded shadow text-xs">
+          <div><b>{data.label}</b> ({data.range})</div>
+          <div>Views: {data.count}</div>
+        </div>
+      );
+    } else if (data.month) {
+      // Year view
+      return (
+        <div className="bg-white p-2 rounded shadow text-xs">
+          <div><b>{data.month}</b></div>
+          <div>Views: {data.count}</div>
+        </div>
+      );
+    } else {
+      // Week view
+      return (
+        <div className="bg-white p-2 rounded shadow text-xs">
+          <div><b>{data.label}</b> ({data.fullDate})</div>
+          <div>Views: {data.count}</div>
+        </div>
+      );
+    }
   }
 
   if (!(isAdmin || isOwner)) {
@@ -409,27 +496,17 @@ export default function AdminAnalytics() {
                     <div className="mt-8 bg-white shadow rounded-lg">
                       <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Views Over Time</h3>
-
                         {analytics.viewsByDay.length > 0 ? (
-                          <div className="h-64">
-                            <div className="h-full flex items-end">
-                              {analytics.viewsByDay.map((day, index) => (
-                                <div key={index} className="flex-1 flex flex-col items-center">
-                                  <div
-                                    className="w-full bg-purple-200 rounded-t"
-                                    style={{
-                                      height: `${Math.max(4, (day.count / Math.max(...analytics.viewsByDay.map((d) => d.count))) * 100)}%`,
-                                    }}
-                                  >
-                                    <div className="w-full h-full bg-purple-600 rounded-t hover:bg-purple-700 transition-colors duration-200"></div>
-                                  </div>
-                                  <div className="text-xs text-gray-500 mt-1 truncate w-full text-center">
-                                    {day.date.split(",")[0]}
-                                  </div>
-                                  <div className="text-xs font-medium">{day.count}</div>
-                                </div>
-                              ))}
-                            </div>
+                          <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={getChartData(analytics.viewsByDay, timeRange)} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="label" />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Line type="monotone" dataKey="count" stroke="#a855f7" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
                           </div>
                         ) : (
                           <div className="flex justify-center items-center h-64 bg-gray-50 rounded-lg">

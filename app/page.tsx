@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import Layout from "../components/Layout"
 import ProductCard from "../components/ProductCard"
@@ -43,7 +43,9 @@ export default function Home() {
 
   return (
     <Layout>
-      <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
+      <Suspense fallback={<div>Loading search...</div>}>
+        <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
+      </Suspense>
       <ActiveFilters filters={filters} />
       <div className="grid grid-cols-1 min-[250px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 min-h-[200px]">
         {isLoading && !loadingTimeout ? (
