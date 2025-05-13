@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useCart } from "../contexts/CartContext"
@@ -9,6 +9,28 @@ export default function CartTrolley() {
   const { cart } = useCart();
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
+  const sidebarRef = useRef(null)
+  const buttonRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event) {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target)
+      ) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("touchstart", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("touchstart", handleClickOutside)
+    }
+  }, [isOpen])
 
   const handleGoToCart = () => {
     router.push("/cart")
@@ -19,6 +41,7 @@ export default function CartTrolley() {
   return (
     <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end">
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen((open) => !open)}
         className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3 shadow-lg transition-all duration-200 flex items-center justify-center mb-2 relative"
         aria-label="View cart"
@@ -37,7 +60,10 @@ export default function CartTrolley() {
         )}
       </button>
       {isOpen && (
-        <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg p-4 w-72 max-h-96 overflow-y-auto border border-gray-200 z-50">
+        <div
+          ref={sidebarRef}
+          className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg p-4 w-72 max-h-[60vh] overflow-y-auto border border-gray-200 z-50"
+        >
           <h4 className="text-lg font-semibold mb-2">Cart</h4>
           {cart.length === 0 ? (
             <p className="text-gray-500">Your cart is empty.</p>

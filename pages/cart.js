@@ -118,8 +118,8 @@ export default function Cart() {
 
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Shopping Cart</h1>
-          <h2 className="text-2xl font-bold mb-4">Your BejeweledByJoy Shopping Cart</h2>
+          <h1 className="text-2xl font-semibold text-gray-900">Your Shopping Cart</h1>
+          {/* <h2 className="text-2xl font-bold mb-4">Your BejeweledByJoy Shopping Cart</h2> */}
 
           {loading ? (
             <div className="mt-6 flex justify-center items-center min-h-[120px]">
