@@ -284,6 +284,9 @@ export default function Profile() {
       <Head>
         <title>Profile - BejeweledByJoy</title>
         <meta name="description" content="Your profile and order history." />
+        <meta name="description" content="Discover handcrafted beaded jewelry by Joy. Unique, colorful, and made with love." />
+        <meta name="keywords" content="handmade jewelry, beaded, custom jewelry, fashion accessories" />
+        <meta name="author" content="Bejeweled By Joy" />
       </Head>
       {error && (
         <div

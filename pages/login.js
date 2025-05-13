@@ -174,6 +174,9 @@ export default function Login() {
       <Head>
         <title>Login - BejeweledByJoy</title>
         <meta name="description" content="Sign in to your BejeweledByJoy account." />
+        <meta name="description" content="Discover handcrafted beaded jewelry by Joy. Unique, colorful, and made with love." />
+        <meta name="keywords" content="handmade jewelry, beaded, custom jewelry, fashion accessories" />
+        <meta name="author" content="Bejeweled By Joy" />
       </Head>
 
       {/* Spinner overlay during initial session check, with fallback */}

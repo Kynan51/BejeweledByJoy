@@ -8,7 +8,9 @@ function MyApp({ Component, pageProps }) {
     <>
       <Head>
         <title>BejeweledByJoy</title>
-        <meta name="description" content="Exquisite BejeweledByJoy collection for all occasions" />
+        <meta name="description" content="Discover handcrafted beaded jewelry by Joy. Unique, colorful, and made with love." />
+        <meta name="keywords" content="handmade jewelry, beaded, custom jewelry, fashion accessories" />
+        <meta name="author" content="Bejeweled By Joy" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/Bejewel-favicon2.png" />
       </Head>

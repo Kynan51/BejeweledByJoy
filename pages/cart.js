@@ -99,6 +99,9 @@ export default function Cart() {
       <Head>
         <title>Shopping Cart - BejeweledByJoy</title>
         <meta name="description" content="View your shopping cart and proceed to checkout." />
+        <meta name="description" content="Discover handcrafted beaded jewelry by Joy. Unique, colorful, and made with love." />
+        <meta name="keywords" content="handmade jewelry, beaded, custom jewelry, fashion accessories" />
+        <meta name="author" content="Bejeweled By Joy" />
       </Head>
 
       {/* Remove the overlay spinner, keep only the error prompt below */}
