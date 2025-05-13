@@ -78,13 +78,22 @@ export function AuthProvider({ children }) {
       // console.log('[AuthContext] Used cached role:', cache.role);
       return cache.role;
     }
-    // Otherwise, check DB
+    // Otherwise, check DB via internal API
     let adminData = null;
     let error = null;
     try {
-      const res = await supabase.from("admins").select("*").eq("email", user.email).single();
-      adminData = res.data;
-      error = res.error;
+      const res = await fetch("/api/admin-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.admin) {
+        adminData = null;
+        error = result.error || 'Not an admin';
+      } else {
+        adminData = result.admin;
+      }
     } catch (e) {
       error = e;
     }

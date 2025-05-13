@@ -30,17 +30,17 @@ export default function Auth() {
         throw error
       }
 
-      // Check if user is an admin
-      const { data: adminData, error: adminError } = await supabase
-        .from("admins")
-        .select("id, email, is_owner")
-        .eq("email", email)
-        .single()
-
-      if (adminError || !adminData) {
+      // Check if user is an admin (call internal API route)
+      const adminRes = await fetch("/api/admin-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const adminResult = await adminRes.json();
+      if (!adminRes.ok || !adminResult.admin) {
         // Sign out if not an admin
-        await supabase.auth.signOut()
-        throw new Error("You are not authorized to access the admin area.")
+        await supabase.auth.signOut();
+        throw new Error("You are not authorized to access the admin area.");
       }
 
       // Redirect to admin dashboard

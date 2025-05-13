@@ -20,8 +20,13 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [spinnerTimeout, setSpinnerTimeout] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const router = useRouter()
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!loading) return
@@ -105,6 +110,7 @@ export default function Register() {
       setFullName("");
       setPhone("");
       setAddress("");
+      router.push("/registration-success");
     } catch (err) {
       console.error('[DEBUG] Registration error:', err);
       setError(err.message);
@@ -113,6 +119,8 @@ export default function Register() {
       // console.log('[DEBUG] Registration process finished');
     }
   }
+
+  if (!mounted) return null;
 
   return (
     <Layout>

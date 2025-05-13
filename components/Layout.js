@@ -48,7 +48,7 @@ export default function Layout({ children }) {
             <div className="flex items-center">
               <Link href="/">
                 <span className="flex-shrink-0 flex items-center">
-                  <Image src="/picsvg.svg" alt="Logo" width={150} height={100} className="h-100 w-200" />
+                  <Image src="/picsvg.svg" alt="Logo" width={150} height={150} style={{ width: 150, height: "auto" }} className="h-auto w-150" priority />
                 </span>
               </Link>
             </div>

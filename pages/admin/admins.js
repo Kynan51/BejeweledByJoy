@@ -47,7 +47,10 @@ export default function AdminUsers() {
     try {
       setLoadingAdmins(true);
       // Fetch all admins
-      const { data, error } = await fetch('/api/admin-list-admins').then(res => res.json());
+      const res = await fetch('/api/admin-list-admins', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const { data, error } = await res.json();
       if (error) throw new Error(error);
       setAdmins(data || []);
     } catch (error) {
