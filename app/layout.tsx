@@ -4,6 +4,7 @@ import CartTrolley from "../components/CartTrolley";
 import WhatsAppButton from "../components/WhatsAppButton";
 import { AuthProvider } from "../contexts/AuthContext";
 import { CartProvider } from "../contexts/CartContext";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: 'BejeweledByJoy',
@@ -24,6 +25,7 @@ export default function RootLayout({
             {children}
             <CartTrolley />
             <WhatsAppButton />
+            <Analytics />
           </CartProvider>
         </AuthProvider>
       </body>
