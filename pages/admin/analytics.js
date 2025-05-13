@@ -532,7 +532,7 @@ export default function AdminAnalytics() {
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                                     <p className="text-sm text-gray-500 truncate">
-                                      ${product.price.toFixed(2)}
+                                      Ksh{product.price.toFixed(2)}
                                       {product.discount > 0 && (
                                         <span className="ml-2 text-xs text-red-500">{product.discount}% OFF</span>
                                       )}
