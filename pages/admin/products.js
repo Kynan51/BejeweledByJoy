@@ -96,7 +96,7 @@ export default function AdminProducts() {
       setLoadingProducts(true);
       // Fetch single product via REST API
       const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${product.id}&select=id,name,description,price,discount,image_urls,quantity`;
-      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       const res = await fetch(url, {
         headers: {
           apikey,

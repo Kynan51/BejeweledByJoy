@@ -34,8 +34,8 @@ export default function OrderConfirmation() {
     try {
       setLoading(true)
 
-      // Check if user is logged in
-      const session = supabase.auth.session()
+      // Check if user is logged in (Supabase v2+)
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login")
         return

@@ -74,7 +74,7 @@ export default function Login() {
     try {
       // Direct REST API call to Supabase Auth (signInWithPassword)
       const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/token?grant_type=password";
-      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -126,7 +126,9 @@ export default function Login() {
       setError(null)
 
       // Send password reset email
-      const { error } = await supabase.auth.api.resetPasswordForEmail(email)
+      const { error } = await supabase.auth.api.resetPasswordForEmail(email, {
+        redirectTo: "https://bejeweled-by-joy.vercel.app/login"
+      })
 
       if (error) {
         throw error

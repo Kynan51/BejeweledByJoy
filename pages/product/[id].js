@@ -15,7 +15,7 @@ const ImageGallery = dynamic(() => import("../../components/ImageGallery"), { ss
 const fetcher = async (id) => {
   // --- PATCH: Use direct REST API fetch (bypass supabase-js) ---
   const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${id}&select=id,name,price,discount,image_urls,description,quantity`;
-  const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+  const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const res = await fetch(url, {
     headers: {
       apikey: apikey,

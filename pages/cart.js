@@ -101,12 +101,7 @@ export default function Cart() {
         <meta name="description" content="View your shopping cart and proceed to checkout." />
       </Head>
 
-      {/* Non-blocking spinner overlay during loading or checkout, with fallback */}
-      {(loading || checkoutLoading) && !spinnerTimeout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
-          <MoonLoader color="#7c3aed" size={48} />
-        </div>
-      )}
+      {/* Remove the overlay spinner, keep only the error prompt below */}
       {spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">

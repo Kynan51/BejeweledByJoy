@@ -46,6 +46,7 @@ export function CartProvider({ children }) {
       }
     } catch (error) {
       console.error("Error loading cart:", error)
+      setCart([]) // fallback to empty cart on error
     } finally {
       setLoading(false)
     }
@@ -129,6 +130,7 @@ export function CartProvider({ children }) {
       }
     } catch (error) {
       console.error("Error loading cart from database:", error)
+      setCart([]) // fallback to empty cart on error
     }
   }
 

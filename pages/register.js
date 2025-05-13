@@ -38,9 +38,19 @@ export default function Register() {
     setLoading(true)
     setError(null)
     try {
+      console.log('[DEBUG] Starting registration', { email, password, fullName, phone, address });
       // Direct REST API call to Supabase Auth (signUp)
-      const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/signup"
-      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc"
+      const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/signup";
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const signupPayload = {
+        email,
+        password,
+        options: {
+          redirectTo: "https://bejeweled-by-joy.vercel.app/login",
+          data: { display_name: fullName }
+        }
+      };
+      console.log('[DEBUG] Signup payload:', signupPayload);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -48,13 +58,22 @@ export default function Register() {
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({ email, password })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error_description || data.error || "Registration failed")
+        body: JSON.stringify(signupPayload)
+      });
+      const data = await res.json();
+      console.log('[DEBUG] Signup response:', data, 'Status:', res.status);
+      if (!res.ok) throw new Error(data.error_description || data.error || "Registration failed");
       // Upsert user profile via REST RPC call
-      if (data.user && data.user.id) {
+      if (data.id) {
         const rpcUrl = "https://izorbgujgfqtugtewxap.supabase.co/rest/v1/rpc/upsert_user_profile";
+        const rpcPayload = {
+          p_id: data.id,
+          p_email: email,
+          p_full_name: fullName,
+          p_address: address,
+          p_phone: phone || null
+        };
+        console.log('[DEBUG] RPC payload:', rpcPayload);
         const rpcRes = await fetch(rpcUrl, {
           method: "POST",
           headers: {
@@ -63,28 +82,35 @@ export default function Register() {
             "Content-Type": "application/json",
             Accept: "application/json"
           },
-          body: JSON.stringify({
-            p_id: data.user.id,
-            p_email: email,
-            p_full_name: fullName,
-            p_address: address,
-            p_phone: phone || null
-          })
+          body: JSON.stringify(rpcPayload)
         });
-        const rpcData = await rpcRes.json();
-        if (!rpcRes.ok) throw new Error(rpcData.error || "Profile upsert failed");
+        let rpcData = null;
+        if (rpcRes.status !== 204) {
+          try {
+            rpcData = await rpcRes.json();
+          } catch (jsonErr) {
+            console.error('[DEBUG] Error parsing RPC response JSON:', jsonErr);
+            rpcData = null;
+          }
+        }
+        console.log('[DEBUG] RPC response:', rpcData, 'Status:', rpcRes.status);
+        if (!rpcRes.ok) throw new Error((rpcData && rpcData.error) || "Profile upsert failed");
+      } else {
+        console.error('[DEBUG] No user.id returned from signup:', data);
       }
-      setMessage("Registration successful! Please check your email to confirm your account.")
-      setEmail("")
-      setPassword("")
-      setConfirmPassword("")
-      setFullName("")
-      setPhone("")
-      setAddress("")
+      setMessage("Registration successful! Please check your email to confirm your account.");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setFullName("");
+      setPhone("");
+      setAddress("");
     } catch (err) {
-      setError(err.message)
+      console.error('[DEBUG] Registration error:', err);
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
+      console.log('[DEBUG] Registration process finished');
     }
   }
 

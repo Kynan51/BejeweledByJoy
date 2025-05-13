@@ -4,11 +4,13 @@ import { useState, useRef } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import supabase from "../utils/supabaseClient"
+import { useCart } from "../contexts/CartContext"
 
 export default function ProductCard({ product, trackView = true }) {
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const router = useRouter()
   const viewTimeout = useRef(null)
+  const { addToCart } = useCart()
 
   // Calculate discounted price
   const discountedPrice =
@@ -43,34 +45,10 @@ export default function ProductCard({ product, trackView = true }) {
     router.push(`/product/${product.id}`)
   }
 
-  const addToCart = (e) => {
+  const handleAddToCart = (e) => {
     e.stopPropagation()
     setIsAddingToCart(true)
-
-    // Get current cart from localStorage
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]")
-
-    // Check if product is already in cart
-    const existingProductIndex = cart.findIndex((item) => item.id === product.id)
-
-    if (existingProductIndex >= 0) {
-      // Increment quantity if product already exists
-      cart[existingProductIndex].quantity += 1
-    } else {
-      // Add new product to cart
-      cart.push({
-        id: product.id,
-        name: product.name,
-        price: discountedPrice,
-        image: mainImage,
-        quantity: 1,
-      })
-    }
-
-    // Save updated cart to localStorage
-    localStorage.setItem("cart", JSON.stringify(cart))
-
-    // Show success animation
+    addToCart(product, 1)
     setTimeout(() => {
       setIsAddingToCart(false)
     }, 1000)
@@ -114,7 +92,7 @@ export default function ProductCard({ product, trackView = true }) {
         </div>
 
         <button
-          onClick={addToCart}
+          onClick={handleAddToCart}
           className={`w-full py-2 px-4 rounded-md text-white font-medium transition-colors duration-300 ${
             isAddingToCart ? "bg-green-500" : "bg-purple-600 hover:bg-purple-700"
           }`}
