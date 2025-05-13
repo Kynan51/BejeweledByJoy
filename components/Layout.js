@@ -9,6 +9,7 @@ import AdminTabsNav from "./AdminTabsNav"
 import { useAuth } from "../contexts/AuthContext"
 import FooterContacts from "./FooterContacts"
 import Image from "next/image"
+import RouteProgressBar from "./RouteProgressBar"
 
 export default function Layout({ children }) {
   const { session, isAdmin, isOwner, loading } = useAuth();
@@ -40,6 +41,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <RouteProgressBar />
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
