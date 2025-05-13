@@ -5,7 +5,6 @@ import { useRouter } from "next/router"
 import Head from "next/head"
 import Link from "next/link"
 import Layout from "../components/Layout"
-import supabase from "../utils/supabaseClient"
 import { MoonLoader } from "react-spinners"
 
 export default function Register() {
@@ -32,71 +31,58 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault()
-
     if (password !== confirmPassword) {
       setError("Passwords do not match.")
       return
     }
-
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      setError(null)
-
-      // Register user with Supabase Auth (v2 API)
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
+      // Direct REST API call to Supabase Auth (signUp)
+      const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/signup"
+      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc"
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "apikey": apikey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ email, password })
       })
-
-      if (authError) {
-        throw authError
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error_description || data.error || "Registration failed")
+      // Upsert user profile via REST RPC call
+      if (data.user && data.user.id) {
+        const rpcUrl = "https://izorbgujgfqtugtewxap.supabase.co/rest/v1/rpc/upsert_user_profile";
+        const rpcRes = await fetch(rpcUrl, {
+          method: "POST",
+          headers: {
+            apikey: apikey,
+            Authorization: `Bearer ${apikey}`,
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          },
+          body: JSON.stringify({
+            p_id: data.user.id,
+            p_email: email,
+            p_full_name: fullName,
+            p_address: address,
+            p_phone: phone || null
+          })
+        });
+        const rpcData = await rpcRes.json();
+        if (!rpcRes.ok) throw new Error(rpcData.error || "Profile upsert failed");
       }
-
-      if (data && data.user) {
-        // Store user details in the users table using the upsert_user_profile function
-        const { error: upsertError } = await supabase.rpc("upsert_user_profile", {
-          p_id: data.user.id,
-          p_email: email,
-          p_full_name: fullName,
-          p_address: address,
-          p_phone: phone || null
-        })
-        if (upsertError) {
-          throw upsertError
-        }
-
-        setMessage(
-          <span>
-            Registration successful!
-          </span>
-        )
-
-        // Clear form
-        setEmail("")
-        setPassword("")
-        setConfirmPassword("")
-        setFullName("")
-        setPhone("")
-        setAddress("")
-
-        // Redirect to registration success page after a short delay
-        setTimeout(() => {
-          router.push("/registration-success")
-        }, 200)
-      }
-    } catch (error) {
-      // Supabase rate limit error handling
-      if (
-        error?.message?.toLowerCase().includes("rate limit") ||
-        error?.message?.toLowerCase().includes("too many requests") ||
-        error?.status === 429
-      ) {
-        setError(
-          "You have reached the limit for verification emails. Please wait 15 minutes and try signing up again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
-        )
-      } else {
-        setError(error.message)
-      }
+      setMessage("Registration successful! Please check your email to confirm your account.")
+      setEmail("")
+      setPassword("")
+      setConfirmPassword("")
+      setFullName("")
+      setPhone("")
+      setAddress("")
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
@@ -120,7 +106,7 @@ export default function Register() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

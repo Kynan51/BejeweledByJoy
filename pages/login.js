@@ -69,41 +69,52 @@ export default function Login() {
 
   const handleSignIn = async (e) => {
     e.preventDefault();
-    console.log('[Login] Sign in button clicked', { email, password });
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      console.log('[Login] Attempting sign in with Supabase');
-      const signInStart = Date.now();
-      const result = await supabase.auth.signInWithPassword({ email, password });
-      const session = result.data?.session;
-      const error = result.error;
-      console.log('[Login] Sign in response:', { session, error });
-
-      if (error) {
-        throw error;
+      // Direct REST API call to Supabase Auth (signInWithPassword)
+      const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/token?grant_type=password";
+      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "apikey": apikey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error_description || data.error || "Login failed");
+      // Store token in localStorage (or cookie) for session
+      localStorage.setItem("sb-access-token", data.access_token);
+      localStorage.setItem("sb-refresh-token", data.refresh_token);
+      // Set session in supabase-js client so useAuth and context update
+      await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token
+      });
+      // Fetch user profile via REST and store in localStorage
+      if (data.user && data.user.id) {
+        const profileUrl = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/users?id=eq.${data.user.id}`;
+        const profileRes = await fetch(profileUrl, {
+          headers: {
+            apikey: apikey,
+            Authorization: `Bearer ${apikey}`,
+            Accept: "application/json"
+          }
+        });
+        const profileData = await profileRes.json();
+        if (profileRes.ok && Array.isArray(profileData) && profileData.length > 0) {
+          localStorage.setItem("sb-user-profile", JSON.stringify(profileData[0]));
+        }
       }
-
-      // Refresh AuthContext session after login and wait for it to finish
-      await refreshAuth();
-      console.log('[Login] Sign in successful, session:', session);
-      // Do not reload or redirect here; let the useEffect handle it
-    } catch (error) {
-      console.error('[Login] Sign in error:', error);
-      if (
-        error?.message?.toLowerCase().includes("rate limit") ||
-        error?.message?.toLowerCase().includes("too many requests") ||
-        error?.status === 429
-      ) {
-        setError(
-          "You have reached the limit for authentication emails. Please wait 15 minutes and try again. The Supabase free tier allows for only 2 verification/confirmation emails per hour."
-        );
-      } else {
-        setError(error.message);
-      }
+      // Redirect to main page or profile
+      router.replace("/");
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
-      console.log('[Login] Sign in process finished');
     }
   };
 
@@ -174,7 +185,7 @@ export default function Login() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

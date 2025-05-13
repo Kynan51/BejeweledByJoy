@@ -112,7 +112,7 @@ export default function Cart() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

@@ -9,6 +9,7 @@ import ActiveFilters from "../components/ActiveFilters"
 import useSWR from "swr"
 import { fetchProductsSWR } from "../lib/fetchers"
 import { MoonLoader } from "react-spinners"
+import type { Product } from "../supabase/types"
 
 interface Filters {
   search?: string
@@ -28,18 +29,26 @@ export default function Home() {
   const { data: products, error, isLoading, mutate } = useSWR(swrKey, fetchProductsSWR)
 
   useEffect(() => {
+    // console.log('[Home useEffect] isLoading:', isLoading, 'products:', products, 'error:', error)
     if (isLoading) {
       const timeout = setTimeout(() => setLoadingTimeout(true), 10000) // 10s max loading
       return () => clearTimeout(timeout)
     } else {
       setLoadingTimeout(false)
     }
-  }, [isLoading])
+  }, [isLoading, products, error])
+
+  useEffect(() => {
+    // console.log('[Home] filters changed:', filters)
+  }, [filters])
 
   function handleSearch(newFilters: Filters) {
+    // console.log('[Home] handleSearch called with:', newFilters)
     setFilters(newFilters)
     // No need to call mutate with a key; SWR will refetch automatically
   }
+
+  // console.log('[Home render] isLoading:', isLoading, 'products:', products, 'error:', error, 'filters:', filters)
 
   return (
     <Layout>
@@ -53,11 +62,11 @@ export default function Home() {
             <MoonLoader color="#a855f7" size={48} />
           </div>
         ) : error ? (
-          <div className="col-span-full text-red-500">{error.message}</div>
+          <div className="col-span-full text-red-500">{(error as Error).message}</div>
         ) : (products && products.length === 0) ? (
           <div className="col-span-full text-gray-500 text-center">No products found.</div>
         ) : (
-          (products || []).map((product) => (
+          (products || []).map((product: Product) => (
             <ProductCard key={product.id} product={product} />
           ))
         )}

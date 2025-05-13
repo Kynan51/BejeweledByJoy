@@ -5,46 +5,23 @@ import { useRouter } from "next/router"
 import Head from "next/head"
 import Link from "next/link"
 import Layout from "../components/Layout"
-import supabase from "../utils/supabaseClient"
 import Image from "next/image"
 import useSWR, { mutate } from "swr"
 import { useAuth } from "../contexts/AuthContext"
 import { MoonLoader } from "react-spinners"
+import {
+  fetchUserProfile,
+  updateUserProfile,
+  fetchOrdersREST,
+  fetchWishlistREST,
+  removeFromWishlistREST,
+  fetchAddressesREST,
+  addAddressREST,
+  deleteAddressREST,
+  setDefaultAddressREST,
+} from "../lib/fetchers"
 
 const PAGE_SIZE = 10;
-
-// SWR fetchers
-const fetchWishlistSWR = async (userId, page = 0) => {
-  const { data, error } = await supabase
-    .from("wishlists")
-    .select(`
-      id,
-      created_at,
-      products (
-        id,
-        name,
-        price,
-        discount,
-        image_urls
-      )
-    `)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-  if (error) throw error;
-  return data || [];
-};
-
-const fetchOrdersSWR = async (userId, page = 0) => {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, created_at, total_amount, status")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-  if (error) throw error;
-  return data || [];
-};
 
 export default function Profile() {
   const { session, loading } = useAuth();
@@ -57,6 +34,7 @@ export default function Profile() {
     full_name: "",
     phone: "",
     address: "",
+    email: "",
   });
   const [activeTab, setActiveTab] = useState("profile");
   const [addresses, setAddresses] = useState([]);
@@ -77,14 +55,14 @@ export default function Profile() {
   const [ordersPage, setOrdersPage] = useState(0);
   const [spinnerTimeout, setSpinnerTimeout] = useState(false);
 
-  // SWR for wishlist and orders
+  // SWR for wishlist and orders (REST)
   const { data: wishlist, error: wishlistError, isValidating: wishlistLoading } = useSWR(
     session?.user ? ["wishlist", session.user.id, wishlistPage] : null,
-    () => fetchWishlistSWR(session.user.id, wishlistPage)
+    () => fetchWishlistREST(session.user.id, wishlistPage)
   );
   const { data: orders, error: ordersError, isValidating: ordersLoading } = useSWR(
     session?.user ? ["orders", session.user.id, ordersPage] : null,
-    () => fetchOrdersSWR(session.user.id, ordersPage)
+    () => fetchOrdersREST(session.user.id, ordersPage)
   );
 
   // Add a computed loading state for sub-tabs
@@ -115,16 +93,11 @@ export default function Profile() {
     }
   }, [session]);
 
+  // Fetch user profile via REST
   async function fetchUserData(userId) {
     try {
       setUserLoading(true);
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, full_name, phone, address, email")
-        .eq("id", userId)
-        .single();
-      if (error) throw error;
-      const userData = Array.isArray(data) ? data[0] : data;
+      const userData = await fetchUserProfile(userId);
       setUser(userData);
       setFormData({
         full_name: userData.full_name ?? "",
@@ -139,15 +112,11 @@ export default function Profile() {
     }
   }
 
+  // Fetch addresses via REST
   async function fetchAddresses() {
     try {
       setAddressesLoading(true);
-      const { data, error } = await supabase
-        .from("saved_addresses")
-        .select("id, name, address, city, state, is_default, postal_code, country")
-        .eq("user_id", session.user.id)
-        .order("is_default", { ascending: false });
-      if (error) throw error;
+      const data = await fetchAddressesREST(session.user.id);
       setAddresses(data || []);
     } catch (error) {
       setError("Failed to load addresses. Please try again later.");
@@ -172,22 +141,19 @@ export default function Profile() {
     });
   };
 
+  // Update profile via REST
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setFormLoading(true);
       setError(null);
       setMessage(null);
-      const { error } = await supabase
-        .from("users")
-        .update({
-          full_name: formData.full_name,
-          address: formData.address,
-          phone: formData.phone,
-          email: user?.email || "",
-        })
-        .eq("id", session.user.id);
-      if (error) throw error;
+      await updateUserProfile(session.user.id, {
+        full_name: formData.full_name,
+        address: formData.address,
+        phone: formData.phone,
+        email: user?.email || "",
+      });
       setMessage("Profile updated successfully!");
       if (checkout) {
         router.push("/cart");
@@ -199,6 +165,7 @@ export default function Profile() {
     }
   };
 
+  // Add address via REST
   const handleAddressSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -206,24 +173,18 @@ export default function Profile() {
       setError(null);
       setMessage(null);
       if (addressFormData.is_default) {
-        await supabase
-          .from("saved_addresses")
-          .update({ is_default: false })
-          .eq("user_id", session.user.id);
+        await setDefaultAddressREST(session.user.id, ""); // Unset all first
       }
-      const { error } = await supabase.from("saved_addresses").insert([
-        {
-          user_id: session.user.id,
-          name: addressFormData.name,
-          address: addressFormData.address,
-          city: addressFormData.city,
-          state: addressFormData.state,
-          postal_code: addressFormData.postal_code,
-          country: addressFormData.country,
-          is_default: addressFormData.is_default,
-        },
-      ]);
-      if (error) throw error;
+      await addAddressREST({
+        user_id: session.user.id,
+        name: addressFormData.name,
+        address: addressFormData.address,
+        city: addressFormData.city,
+        state: addressFormData.state,
+        postal_code: addressFormData.postal_code,
+        country: addressFormData.country,
+        is_default: addressFormData.is_default,
+      });
       setMessage("Address added successfully!");
       setShowAddressForm(false);
       setAddressFormData({
@@ -243,34 +204,30 @@ export default function Profile() {
     }
   };
 
+  // Set default address via REST
   const handleSetDefaultAddress = async (addressId) => {
     try {
-      await supabase
-        .from("saved_addresses")
-        .update({ is_default: false })
-        .eq("user_id", session.user.id);
-      await supabase
-        .from("saved_addresses")
-        .update({ is_default: true })
-        .eq("id", addressId);
+      await setDefaultAddressREST(session.user.id, addressId);
       fetchAddresses();
     } catch (error) {
       setError("Failed to set default address.");
     }
   };
 
+  // Delete address via REST
   const handleDeleteAddress = async (addressId) => {
     try {
-      await supabase.from("saved_addresses").delete().eq("id", addressId);
+      await deleteAddressREST(addressId);
       fetchAddresses();
     } catch (error) {
       setError("Failed to delete address.");
     }
   };
 
+  // Remove from wishlist via REST
   const handleRemoveFromWishlist = async (wishlistId) => {
     try {
-      await supabase.from("wishlists").delete().eq("id", wishlistId);
+      await removeFromWishlistREST(wishlistId);
       mutate(["wishlist", session.user.id, wishlistPage]);
     } catch (error) {
       setError("Error removing from wishlist.");
@@ -278,11 +235,22 @@ export default function Profile() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    // Remove all possible auth and profile data from localStorage instantly
     if (typeof window !== "undefined") {
       localStorage.removeItem("userRoleCache");
+      localStorage.removeItem("sb-access-token");
+      localStorage.removeItem("sb-refresh-token");
+      localStorage.removeItem("sb-user-profile");
+      // Remove any other app-specific keys if needed
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("sb-") || key.startsWith("supabase")) {
+          localStorage.removeItem(key);
+        }
+      });
     }
-    router.push("/");
+    // Optionally call signOut on supabase, but don't wait for it
+    supabase.auth.signOut();
+    router.push("/login");
   };
 
   return (
@@ -309,7 +277,7 @@ export default function Profile() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

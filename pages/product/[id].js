@@ -6,7 +6,6 @@ import Head from "next/head"
 import Layout from "../../components/Layout"
 import WishlistButton from "../../components/WishlistButton"
 import { useCart } from "../../contexts/CartContext"
-import supabase from "../../utils/supabaseClient"
 import useSWR from "swr"
 import { MoonLoader } from "react-spinners"
 import dynamic from "next/dynamic"
@@ -14,12 +13,18 @@ import dynamic from "next/dynamic"
 const ImageGallery = dynamic(() => import("../../components/ImageGallery"), { ssr: false })
 
 const fetcher = async (id) => {
-  const { data, error } = await supabase
-    .from("products")
-    .select("id, name, price, discount, image_urls, description, quantity")
-    .eq("id", id);
-  if (error) throw error;
-  // Always return a single product object, not an array
+  // --- PATCH: Use direct REST API fetch (bypass supabase-js) ---
+  const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${id}&select=id,name,price,discount,image_urls,description,quantity`;
+  const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+  const res = await fetch(url, {
+    headers: {
+      apikey: apikey,
+      Authorization: `Bearer ${apikey}`,
+      Accept: "application/json",
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Unknown error");
   let product = null;
   if (Array.isArray(data) && data.length > 0) {
     product = data[0];
@@ -31,7 +36,7 @@ const fetcher = async (id) => {
     product.image_urls = ["/placeholder.jpg"];
   }
   if (typeof window !== 'undefined') {
-    console.log('[ProductDetail] Normalized product:', product);
+    // console.log('[ProductDetail] Normalized product:', product);
   }
   return product;
 };
@@ -102,7 +107,7 @@ export default function ProductDetail() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

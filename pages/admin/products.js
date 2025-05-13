@@ -12,6 +12,7 @@ import imageCompression from "browser-image-compression"
 import { useAuth } from "../../contexts/AuthContext"
 import { getUserRole, isAdminRole, isOwnerRole } from "../../utils/role"
 import { MoonLoader } from "react-spinners"
+import { fetchProductsSWR } from "../../lib/fetchers"
 
 export default function AdminProducts() {
   const { session, loading } = useAuth();
@@ -64,12 +65,8 @@ export default function AdminProducts() {
   async function fetchProducts(page = 0) {
     try {
       setLoadingProducts(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, price, discount, image_urls, quantity, created_at")
-        .order("created_at", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (error) throw error;
+      // Use REST API fetcher for product list
+      const data = await fetchProductsSWR(["products", { page }]);
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -96,17 +93,20 @@ export default function AdminProducts() {
 
   const openEditModal = async (product) => {
     try {
-      console.log('[DEBUG] openEditModal called with:', product);
       setLoadingProducts(true);
-      // Fetch latest product details from the database
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, description, price, discount, image_urls, quantity")
-        .eq("id", product.id)
-        .maybeSingle(); // Use maybeSingle to always get an object or null
-      if (error) throw error;
-      if (!data) throw new Error('Product not found');
-      console.log('[DEBUG] Fetched product from DB:', data);
+      // Fetch single product via REST API
+      const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${product.id}&select=id,name,description,price,discount,image_urls,quantity`;
+      const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6b3JiZ3VqZ2ZxdHVndGV3eGFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MjgxNjIsImV4cCI6MjA2MjMwNDE2Mn0.VUm9QAhm6uerNGLPzx7aK7M-Hgdw1jBdmF5umw6z2Nc";
+      const res = await fetch(url, {
+        headers: {
+          apikey,
+          Authorization: `Bearer ${apikey}`,
+          Accept: "application/json",
+        },
+      });
+      const arr = await res.json();
+      if (!res.ok) throw new Error(arr.error || "Unknown error");
+      const data = Array.isArray(arr) ? arr[0] : arr;
       setCurrentProduct({
         id: data.id,
         name: data.name,
@@ -120,9 +120,6 @@ export default function AdminProducts() {
       setFormError(null);
       setModalMode('edit');
       setIsModalOpen(true);
-      setTimeout(() => {
-        console.log('[DEBUG] currentProduct after set:', currentProduct);
-      }, 100);
     } catch (err) {
       setFormError("Failed to fetch latest product details.");
       console.error('[DEBUG] Error in openEditModal:', err);
@@ -239,7 +236,7 @@ export default function AdminProducts() {
       body: formData,
     });
     const result = await res.json();
-    console.log("uploadImageToServer result:", result, "status:", res.status);
+    // console.log("uploadImageToServer result:", result, "status:", res.status);
     if (!res.ok) throw new Error(result.error || "Image upload failed");
     return result.url;
   };
@@ -247,7 +244,7 @@ export default function AdminProducts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
-    console.log("Submitting product:", currentProduct);
+    // console.log("Submitting product:", currentProduct);
 
     if (!currentProduct.name.trim()) {
       setFormError("Product name is required.");
@@ -266,7 +263,7 @@ export default function AdminProducts() {
         uploadedImages.map(async (uploadedImage) => {
           const file = uploadedImage.file;
           const url = await uploadImageToServer(file, currentProduct.id);
-          console.log("Image upload result:", url, "for file:", file);
+          // console.log("Image upload result:", url, "for file:", file);
           return url;
         })
       );
@@ -279,7 +276,7 @@ export default function AdminProducts() {
           (url) => url && url !== "null" && url !== "undefined"
         ),
       ];
-      console.log("allImageUrls to be saved:", allImageUrls);
+      // console.log("allImageUrls to be saved:", allImageUrls);
 
       const productData = {
         name: currentProduct.name.trim(),
@@ -290,7 +287,7 @@ export default function AdminProducts() {
         quantity: Number.parseInt(currentProduct.quantity) || 0,
       };
 
-      console.log("Sending productData to API:", productData);
+      // console.log("Sending productData to API:", productData);
 
       let res, result;
 
@@ -301,7 +298,7 @@ export default function AdminProducts() {
           body: JSON.stringify({ id: currentProduct.id, ...productData }),
         });
         result = await res.json();
-        console.log("Update product API response:", result);
+        // console.log("Update product API response:", result);
         if (!res.ok) throw new Error(result.error || "Error updating product");
       } else {
         res = await fetch("/api/admin-add-product", {
@@ -310,7 +307,7 @@ export default function AdminProducts() {
           body: JSON.stringify(productData),
         });
         result = await res.json();
-        console.log("Add product API response:", result);
+        // console.log("Add product API response:", result);
         if (!res.ok) throw new Error(result.error || "Error adding product");
       }
 
@@ -372,7 +369,7 @@ export default function AdminProducts() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

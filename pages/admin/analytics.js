@@ -60,10 +60,14 @@ export default function AdminAnalytics() {
       let startDate, endDate
 
       if (timeRange === "week") {
+        // Set startDate to most recent Sunday 00:00:00 local time
         startDate = new Date(now)
-        startDate.setDate(now.getDate() - now.getDay()) // Sunday of this week
+        startDate.setDate(now.getDate() - now.getDay())
+        startDate.setHours(0, 0, 0, 0)
+        // Set endDate to upcoming Saturday 23:59:59 local time
         endDate = new Date(startDate)
-        endDate.setDate(startDate.getDate() + 6) // Saturday of this week
+        endDate.setDate(startDate.getDate() + 6)
+        endDate.setHours(23, 59, 59, 999)
       } else if (timeRange === "month") {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1) // 1st of current month
         endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0) // last day of current month
@@ -359,7 +363,7 @@ export default function AdminAnalytics() {
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
             Something went wrong. Please try refreshing the page.
             <button
-              onClick={() => { window.location.href = window.location.href; }}
+              onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
               Retry

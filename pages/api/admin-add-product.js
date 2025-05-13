@@ -6,16 +6,16 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  console.log('API /admin-add-product called', req.method, req.body);
+  // console.log('API /admin-add-product called', req.method, req.body);
   if (req.method !== 'POST') {
-    console.log('Method not allowed');
+    // console.log('Method not allowed');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // TODO: Replace with real admin authentication logic
   const { name, description, price, discount, image_urls, quantity } = req.body;
   if (!name || !price) {
-    console.log('Missing required fields', req.body);
+    // console.log('Missing required fields', req.body);
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -26,13 +26,13 @@ export default async function handler(req, res) {
       .select('id, name, description, price, discount, image_urls, quantity')
       .single();
     if (error) {
-      console.log('Supabase insert error:', error);
+      // console.log('Supabase insert error:', error);
       return res.status(500).json({ error: error.message });
     }
-    console.log('Product inserted:', data);
+    // console.log('Product inserted:', data);
     return res.status(200).json({ data });
   } catch (err) {
-    console.log('Unexpected error:', err);
+    // console.log('Unexpected error:', err);
     return res.status(500).json({ error: err.message });
   }
 }

@@ -22,18 +22,19 @@ export default function Layout({ children }) {
   }, [session, isAdmin, isOwner, loading]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    // Remove all possible auth and profile data from localStorage instantly
     if (typeof window !== 'undefined') {
       localStorage.removeItem('userRoleCache');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-refresh-token');
+      localStorage.removeItem('sb-user-profile');
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-') || key.startsWith('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
     }
-    // Wait for session to be cleared before redirecting
-    let tries = 0;
-    while (tries < 10) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) break;
-      await new Promise(res => setTimeout(res, 100));
-      tries++;
-    }
+    supabase.auth.signOut(); // Don't await
     router.push('/login');
   }
 

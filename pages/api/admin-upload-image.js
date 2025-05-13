@@ -9,7 +9,7 @@ const supabaseAnon = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-console.log('SUPABASE ANON KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+// console.log('SUPABASE ANON KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export const config = {
   api: {
@@ -45,24 +45,24 @@ export default async function handler(req, res) {
         contentType,
         upsert: true,
       });
-      console.log('Upload attempt:', { filePath, mimetype, contentType, uploadData, uploadErrorObj });
+      // console.log('Upload attempt:', { filePath, mimetype, contentType, uploadData, uploadErrorObj });
       if (uploadErrorObj) {
         uploadError = uploadErrorObj.message;
       } else {
         const { data: listData, error: listError } = await supabaseService.storage.from('products').list('', { limit: 100 });
-        console.log('Bucket file list after upload:', { listData, listError });
+        // console.log('Bucket file list after upload:', { listData, listError });
         // Use anon client for public URL
         let url, urlError;
         const publicUrlResult = supabaseAnon.storage.from('products').getPublicUrl(filePath);
         url = publicUrlResult.publicURL;
         urlError = publicUrlResult.error;
-        console.log('Public URL generation:', { filePath, url, urlError });
+        // console.log('Public URL generation:', { filePath, url, urlError });
         // Fallback: construct the public URL manually if getPublicUrl fails
         if (!url) {
           const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('https://')[1]?.split('.')[0];
           if (projectRef) {
             url = `https://${projectRef}.supabase.co/storage/v1/object/public/products/${filePath}`;
-            console.log('Manual public URL fallback:', url);
+            // console.log('Manual public URL fallback:', url);
           }
         }
         publicURL = url;
