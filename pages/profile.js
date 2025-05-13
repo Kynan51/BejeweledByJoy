@@ -54,6 +54,7 @@ export default function Profile() {
   const [wishlistPage, setWishlistPage] = useState(0);
   const [ordersPage, setOrdersPage] = useState(0);
   const [spinnerTimeout, setSpinnerTimeout] = useState(false);
+  const [forceLoaded, setForceLoaded] = useState(false);
 
   // SWR for wishlist and orders (REST)
   const { data: wishlist, error: wishlistError, isValidating: wishlistLoading } = useSWR(
@@ -68,12 +69,37 @@ export default function Profile() {
   // Add a computed loading state for sub-tabs
   const isTabLoading = ordersLoading || wishlistLoading || addressesLoading;
 
+  // If session is present but loading is stuck, force loading to false after 8s
+  useEffect(() => {
+    if (session && loading) {
+      const timeout = setTimeout(() => setForceLoaded(true), 8000);
+      return () => clearTimeout(timeout);
+    } else if (!loading) {
+      setForceLoaded(false);
+    }
+  }, [session, loading]);
+
   // Prevent spinner from blocking UI forever (fallback after 10s)
   useEffect(() => {
-    if (!loading && !userLoading && !isTabLoading) return;
+    if ((!loading && !userLoading && !isTabLoading) || forceLoaded) return;
     const timeout = setTimeout(() => setSpinnerTimeout(true), 10000);
     return () => clearTimeout(timeout);
-  }, [loading, userLoading, isTabLoading]);
+  }, [loading, userLoading, isTabLoading, forceLoaded]);
+
+  // Force redirect to login if session is not available after 20s
+  useEffect(() => {
+    if (!loading && !session) {
+      router.replace("/login?redirect=/profile");
+    }
+    if (!session) {
+      const loginTimeout = setTimeout(() => {
+        if (!session) {
+          router.replace("/login?redirect=/profile");
+        }
+      }, 20000);
+      return () => clearTimeout(loginTimeout);
+    }
+  }, [loading, session, router]);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -267,7 +293,7 @@ export default function Profile() {
           <span className="block sm:inline">{error}</span>
         </div>
       )}
-      {!error && (loading || userLoading || isTabLoading) && !spinnerTimeout && (
+      {!error && ((loading && !forceLoaded) || userLoading || isTabLoading) && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
         </div>
@@ -275,7 +301,8 @@ export default function Profile() {
       {spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
           <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
-            Something went wrong. Please try refreshing the page.
+            Something went wrong. This may be due to a network issue.<br />
+            Please try refreshing the page.
             <button
               onClick={() => { window.location.reload(true); }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"

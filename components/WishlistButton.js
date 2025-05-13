@@ -19,7 +19,7 @@ export default function WishlistButton({ productId }) {
 
   useEffect(() => {
     // Debug: Log session and productId on mount
-    console.log('[WishlistButton] session:', session, 'productId:', productId)
+    // console.log('[WishlistButton] session:', session, 'productId:', productId)
     if (session && productId) {
       checkIfInWishlist(session.user.id, productId)
     } else {
@@ -33,20 +33,20 @@ export default function WishlistButton({ productId }) {
     try {
       setLoading(true)
       // Debug: Log userId and productId for wishlist check
-      console.log('[WishlistButton] checkIfInWishlist userId:', userId, 'productId:', productId)
+      // console.log('[WishlistButton] checkIfInWishlist userId:', userId, 'productId:', productId)
       const { data, error } = await supabase
         .from("wishlists")
         .select("id")
         .eq("user_id", userId)
         .eq("product_id", productId)
         .maybeSingle(); // Use maybeSingle to avoid throwing if not found
-      console.log('[WishlistButton] Supabase wishlist data:', data, 'error:', error)
+      // console.log('[WishlistButton] Supabase wishlist data:', data, 'error:', error)
       if (error && error.code !== "PGRST116") {
         throw error
       }
       setIsInWishlist(!!data)
     } catch (error) {
-      console.log('[WishlistButton] Error checking wishlist:', error)
+      // console.log('[WishlistButton] Error checking wishlist:', error)
       setIsInWishlist(false)
     } finally {
       setLoading(false)
@@ -89,7 +89,7 @@ export default function WishlistButton({ productId }) {
       }
     } catch (error) {
       // Only log this error for debugging wishlist toggle
-      console.log('[WishlistButton] Error toggling wishlist:', error)
+      // console.log('[WishlistButton] Error toggling wishlist:', error)
     } finally {
       setLoading(false)
     }

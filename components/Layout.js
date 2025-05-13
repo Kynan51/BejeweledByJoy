@@ -19,7 +19,7 @@ export default function Layout({ children }) {
 
   // Debug log for header state
   useEffect(() => {
-    console.log('[Layout] Header state:', { session, isAdmin, isOwner, loading });
+    // console.log('[Layout] Header state:', { session, isAdmin, isOwner, loading });
   }, [session, isAdmin, isOwner, loading]);
 
   async function handleSignOut() {
@@ -110,30 +110,30 @@ export default function Layout({ children }) {
             <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white shadow-xl">
               <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
                 <nav className="space-y-1 mb-6">
-                  <Link href="/">
+                  <Link href="/" onClick={() => setIsMenuOpen(false)}>
                     <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Products</span>
                   </Link>
                   {session && (isAdmin || isOwner) && (
-                    <Link href="/admin">
+                    <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
                       <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Dashboard</span>
                     </Link>
                   )}
                   {session && (
-                    <Link href="/profile">
+                    <Link href="/profile" onClick={() => setIsMenuOpen(false)}>
                       <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">My Profile</span>
                     </Link>
                   )}
-                  <Link href="/about">
+                  <Link href="/about" onClick={() => setIsMenuOpen(false)}>
                     <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">About Us</span>
                   </Link>
                   {session ? (
                     <button onClick={handleSignOut} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign Out</button>
                   ) : (
                     <>
-                      <Link href="/login">
+                      <Link href="/login" onClick={() => setIsMenuOpen(false)}>
                         <span className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Sign In</span>
                       </Link>
-                      <Link href="/register">
+                      <Link href="/register" onClick={() => setIsMenuOpen(false)}>
                         <span className="block px-3 py-2 rounded-md text-base font-medium bg-purple-600 text-white hover:bg-purple-700">Register</span>
                       </Link>
                     </>

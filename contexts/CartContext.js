@@ -315,17 +315,21 @@ export function CartProvider({ children }) {
       product.discount > 0 ? product.price - product.price * (product.discount / 100) : product.price
 
     // Get current cart from localStorage
-    const currentCart = [...cart]
+    let localCart = JSON.parse(localStorage.getItem("cart") || "[]")
 
     // Check if product is already in cart
-    const existingItemIndex = currentCart.findIndex((item) => item.product_id === product.id)
+    let existingItemIndex = localCart.findIndex((item) => item.product_id === product.id)
+    if (existingItemIndex === -1) {
+      // Try fallback for legacy carts with id instead of product_id
+      existingItemIndex = localCart.findIndex((item) => item.id === product.id)
+    }
 
     if (existingItemIndex >= 0) {
       // Increment quantity if product already exists
-      currentCart[existingItemIndex].quantity += quantity
+      localCart[existingItemIndex].quantity += quantity
     } else {
       // Add new product to cart
-      currentCart.push({
+      localCart.push({
         product_id: product.id,
         name: product.name,
         price: discountedPrice,
@@ -335,8 +339,10 @@ export function CartProvider({ children }) {
     }
 
     // Save updated cart to localStorage
-    localStorage.setItem("cart", JSON.stringify(currentCart))
-    setCart(currentCart)
+    localStorage.setItem("cart", JSON.stringify(localCart))
+    setCart(localCart)
+    // Dispatch custom event for immediate UI update
+    window.dispatchEvent(new Event("cart-updated"))
   }
 
   // Remove item from cart

@@ -10,7 +10,7 @@ function MyApp({ Component, pageProps }) {
         <title>BejeweledByJoy</title>
         <meta name="description" content="Exquisite BejeweledByJoy collection for all occasions" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/Bejewel-favicon2.png" />
       </Head>
       <AuthProvider>
         <CartProvider>

@@ -1,33 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { useCart } from "../contexts/CartContext"
 
 export default function CartTrolley() {
-  const [cart, setCart] = useState([])
+  const { cart } = useCart();
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    // Load cart from localStorage
-    const storedCart = JSON.parse(localStorage.getItem("cart") || "[]")
-    setCart(storedCart)
-    // Listen for cart changes in other tabs
-    const onStorage = () => {
-      setCart(JSON.parse(localStorage.getItem("cart") || "[]"))
-    }
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
-  }, [])
-
-  // Update cart when items are added/removed
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCart(JSON.parse(localStorage.getItem("cart") || "[]"))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
 
   const handleGoToCart = () => {
     router.push("/cart")
@@ -50,20 +31,20 @@ export default function CartTrolley() {
           className="w-7 h-7"
         />
         {itemCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 font-bold border-1 border-white">
             {itemCount}
           </span>
         )}
       </button>
       {isOpen && (
-        <div className="bg-white rounded-lg shadow-lg p-4 mb-2 w-72 max-h-96 overflow-y-auto border border-gray-200">
+        <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg p-4 w-72 max-h-96 overflow-y-auto border border-gray-200 z-50">
           <h4 className="text-lg font-semibold mb-2">Cart</h4>
           {cart.length === 0 ? (
             <p className="text-gray-500">Your cart is empty.</p>
           ) : (
             <ul className="divide-y divide-gray-200 mb-2">
               {cart.map((item, idx) => (
-                <li key={item.id + idx} className="flex items-center py-2">
+                <li key={(item.product_id || item.id || idx) + '-' + idx} className="flex items-center py-2">
                   <div className="w-12 h-12 relative flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
                     <Image
                       src={item.image || "/placeholder.svg"}
@@ -76,7 +57,7 @@ export default function CartTrolley() {
                     <div className="font-medium text-gray-900 truncate">{item.name}</div>
                     <div className="text-xs text-gray-500">Qty: {item.quantity || 1}</div>
                   </div>
-                  <div className="ml-2 text-sm font-semibold text-purple-600">${item.price?.toFixed(2)}</div>
+                  <div className="ml-2 text-sm font-semibold text-purple-600">Ksh{item.price?.toFixed(2)}</div>
                 </li>
               ))}
             </ul>

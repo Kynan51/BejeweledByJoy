@@ -577,7 +577,7 @@ export default function AdminProducts() {
                   isOpen={isModalOpen}
                   onClose={closeModal}
                 >
-                  {console.log('[DEBUG] Modal render, currentProduct:', currentProduct)}
+                  {/* {console.log('[DEBUG] Modal render, currentProduct:', currentProduct)} */}
                   <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] sm:max-h-[80vh] overflow-y-auto p-2 w-[95vw] max-w-md sm:max-w-xl mx-auto rounded-lg bg-white z-[1201]">
                     <h2 className="text-lg font-bold mb-2 text-center">{modalMode === 'edit' ? 'Edit Product' : 'Add Product'}</h2>
                     {formError && <div className="text-red-600 text-sm mb-2">{formError}</div>}

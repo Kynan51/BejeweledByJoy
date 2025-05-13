@@ -38,7 +38,7 @@ export default function Register() {
     setLoading(true)
     setError(null)
     try {
-      console.log('[DEBUG] Starting registration', { email, password, fullName, phone, address });
+      // console.log('[DEBUG] Starting registration', { email, password, fullName, phone, address });
       // Direct REST API call to Supabase Auth (signUp)
       const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/signup";
       const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -50,7 +50,7 @@ export default function Register() {
           data: { display_name: fullName }
         }
       };
-      console.log('[DEBUG] Signup payload:', signupPayload);
+      // console.log('[DEBUG] Signup payload:', signupPayload);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -61,7 +61,7 @@ export default function Register() {
         body: JSON.stringify(signupPayload)
       });
       const data = await res.json();
-      console.log('[DEBUG] Signup response:', data, 'Status:', res.status);
+      // console.log('[DEBUG] Signup response:', data, 'Status:', res.status);
       if (!res.ok) throw new Error(data.error_description || data.error || "Registration failed");
       // Upsert user profile via REST RPC call
       if (data.id) {
@@ -73,7 +73,7 @@ export default function Register() {
           p_address: address,
           p_phone: phone || null
         };
-        console.log('[DEBUG] RPC payload:', rpcPayload);
+        // console.log('[DEBUG] RPC payload:', rpcPayload);
         const rpcRes = await fetch(rpcUrl, {
           method: "POST",
           headers: {
@@ -93,7 +93,7 @@ export default function Register() {
             rpcData = null;
           }
         }
-        console.log('[DEBUG] RPC response:', rpcData, 'Status:', rpcRes.status);
+        // console.log('[DEBUG] RPC response:', rpcData, 'Status:', rpcRes.status);
         if (!rpcRes.ok) throw new Error((rpcData && rpcData.error) || "Profile upsert failed");
       } else {
         console.error('[DEBUG] No user.id returned from signup:', data);
@@ -110,7 +110,7 @@ export default function Register() {
       setError(err.message);
     } finally {
       setLoading(false);
-      console.log('[DEBUG] Registration process finished');
+      // console.log('[DEBUG] Registration process finished');
     }
   }
 
