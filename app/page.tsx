@@ -10,6 +10,7 @@ import useSWR from "swr"
 import { fetchProductsSWR } from "../lib/fetchers"
 import { MoonLoader } from "react-spinners"
 import type { Product } from "../supabase/types"
+import Head from "next/head"
 
 interface Filters {
   search?: string
@@ -51,34 +52,39 @@ export default function Home() {
   // console.log('[Home render] isLoading:', isLoading, 'products:', products, 'error:', error, 'filters:', filters)
 
   return (
-    <Layout>
-      <Suspense fallback={<div>Loading search...</div>}>
-        <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
-      </Suspense>
-      <ActiveFilters filters={filters} />
-      <div className="grid grid-cols-1 min-[250px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 min-h-[200px]">
-        {isLoading && !loadingTimeout ? (
-          <div className="col-span-full flex justify-center items-center min-h-[200px]">
-            <MoonLoader color="#a855f7" size={48} />
-          </div>
-        ) : error ? (
-          <div className="col-span-full text-red-500">{(error as Error).message}</div>
-        ) : (products && products.length === 0) ? (
-          <div className="col-span-full text-gray-500 text-center">No products found.</div>
-        ) : (
-          (products || []).map((product: Product) => (
-            <ProductCard key={product.id} product={product} />
-          ))
-        )}
-      </div>
-      {loadingTimeout && isLoading && (
-        <div className="flex flex-col items-center justify-center mt-8">
-          <p className="text-red-500 mb-4">Loading is taking longer than expected. Please check your connection or try refreshing.</p>
-          <button onClick={() => { window.location.href = window.location.href; }} className="px-4 py-2 bg-purple-600 text-white rounded mx-auto mt-2">
-            Retry
-          </button>
+    <>
+      <Head>
+        <link rel="icon" href="/Bejewel-favicon2.png" type="image/png" />
+      </Head>
+      <Layout>
+        <Suspense fallback={<div>Loading search...</div>}>
+          <SearchAndFilter onSearch={handleSearch} initialFilters={filters} />
+        </Suspense>
+        <ActiveFilters filters={filters} />
+        <div className="grid grid-cols-1 min-[250px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 min-h-[200px]">
+          {isLoading && !loadingTimeout ? (
+            <div className="col-span-full flex justify-center items-center min-h-[200px]">
+              <MoonLoader color="#a855f7" size={48} />
+            </div>
+          ) : error ? (
+            <div className="col-span-full text-red-500">{(error as Error).message}</div>
+          ) : (products && products.length === 0) ? (
+            <div className="col-span-full text-gray-500 text-center">No products found.</div>
+          ) : (
+            (products || []).map((product: Product) => (
+              <ProductCard key={product.id} product={product} />
+            ))
+          )}
         </div>
-      )}
-    </Layout>
+        {loadingTimeout && isLoading && (
+          <div className="flex flex-col items-center justify-center mt-8">
+            <p className="text-red-500 mb-4">Loading is taking longer than expected. Please check your connection or try refreshing.</p>
+            <button onClick={() => { window.location.href = window.location.href; }} className="px-4 py-2 bg-purple-600 text-white rounded mx-auto mt-2">
+              Retry
+            </button>
+          </div>
+        )}
+      </Layout>
+    </>
   )
 }

@@ -148,8 +148,8 @@ export default function Cart() {
 
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <ul className="divide-y divide-gray-200">
-                  {cart.map((item) => (
-                    <li key={item.id} className="p-6 flex items-center">
+                  {cart.map((item, idx) => (
+                    <li key={`${item.id}-${item.product_id || item.name}-${idx}`} className="p-6 flex items-center">
                       <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                         {item.image ? (
                           <Image
@@ -157,6 +157,7 @@ export default function Cart() {
                             alt={item.name}
                             width={80}
                             height={80}
+                            sizes="80px"
                             className="h-full w-full object-cover object-center"
                           />
                         ) : (

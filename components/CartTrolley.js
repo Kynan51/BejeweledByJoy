@@ -76,6 +76,7 @@ export default function CartTrolley() {
                       src={item.image || "/placeholder.svg"}
                       alt={item.name}
                       fill
+                      sizes="48px"
                       className="object-cover object-center rounded"
                     />
                   </div>

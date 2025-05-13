@@ -35,18 +35,18 @@ export default function Register() {
   }, [loading])
 
   const handleRegister = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (password !== confirmPassword) {
-      setError("Passwords do not match.")
-      return
+      setError("Passwords do not match.");
+      return;
     }
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      // console.log('[DEBUG] Starting registration', { email, password, fullName, phone, address });
+      // Remove client-side admin email check (forbidden with anon key)
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       // Direct REST API call to Supabase Auth (signUp)
       const url = "https://izorbgujgfqtugtewxap.supabase.co/auth/v1/signup";
-      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       const signupPayload = {
         email,
         password,
@@ -55,7 +55,6 @@ export default function Register() {
           data: { display_name: fullName }
         }
       };
-      // console.log('[DEBUG] Signup payload:', signupPayload);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -66,8 +65,26 @@ export default function Register() {
         body: JSON.stringify(signupPayload)
       });
       const data = await res.json();
-      // console.log('[DEBUG] Signup response:', data, 'Status:', res.status);
-      if (!res.ok) throw new Error(data.error_description || data.error || "Registration failed");
+      if (!res.ok) {
+        const alreadyRegistered =
+          (data.error_description?.toLowerCase().includes("already registered") ||
+            data.error?.toLowerCase().includes("already registered") ||
+            data.msg?.toLowerCase().includes("already registered") ||
+            data.error_description?.toLowerCase().includes("user already exists") ||
+            data.error?.toLowerCase().includes("user already exists")
+          );
+        if (alreadyRegistered) {
+          setError(
+            <span>
+              This email is already registered. <Link href="/login" className="underline text-purple-600">Go to login</Link>
+            </span>
+          );
+        } else {
+          setError(data.error_description || data.error || "Registration failed");
+        }
+        setLoading(false);
+        return;
+      }
       // Upsert user profile via REST RPC call
       if (data.id) {
         const rpcUrl = "https://izorbgujgfqtugtewxap.supabase.co/rest/v1/rpc/upsert_user_profile";
@@ -75,10 +92,9 @@ export default function Register() {
           p_id: data.id,
           p_email: email,
           p_full_name: fullName,
-          p_address: address,
+          p_address: address || "",
           p_phone: phone || null
         };
-        // console.log('[DEBUG] RPC payload:', rpcPayload);
         const rpcRes = await fetch(rpcUrl, {
           method: "POST",
           headers: {
@@ -98,8 +114,34 @@ export default function Register() {
             rpcData = null;
           }
         }
-        // console.log('[DEBUG] RPC response:', rpcData, 'Status:', rpcRes.status);
-        if (!rpcRes.ok) throw new Error((rpcData && rpcData.error) || "Profile upsert failed");
+        if (!rpcRes.ok) {
+          let upsertErrorMsg = "";
+          if (rpcData) {
+            if (typeof rpcData.error === 'string') upsertErrorMsg += rpcData.error.toLowerCase();
+            if (typeof rpcData.message === 'string') upsertErrorMsg += ' ' + rpcData.message.toLowerCase();
+          }
+          // Show friendly message for 409 Conflict or duplicate/unique errors
+          if (
+            rpcRes.status === 409 ||
+            upsertErrorMsg.includes("already registered") ||
+            upsertErrorMsg.includes("duplicate key value") ||
+            upsertErrorMsg.includes("unique constraint") ||
+            upsertErrorMsg.includes("duplicate") ||
+            upsertErrorMsg.includes("conflict")
+          ) {
+            setError(
+              <span>
+                This email is already registered. <Link href="/login" className="underline text-purple-600">Go to login</Link>
+              </span>
+            );
+            setLoading(false);
+            return;
+          } else {
+            setError((rpcData && (rpcData.error || rpcData.message)) || "Registration failed");
+            setLoading(false);
+            return;
+          }
+        }
       } else {
         console.error('[DEBUG] No user.id returned from signup:', data);
       }
@@ -116,7 +158,6 @@ export default function Register() {
       setError(err.message);
     } finally {
       setLoading(false);
-      // console.log('[DEBUG] Registration process finished');
     }
   }
 
@@ -127,9 +168,9 @@ export default function Register() {
       <Head>
         <title>Register - BejeweledByJoy</title>
         <meta name="description" content="Create an account to shop at BejeweledByJoy." />
+        <link rel="icon" href="/Bejewel-favicon2.png" type="image/png" />
       </Head>
 
-      {/* Non-blocking spinner overlay during loading, with fallback */}
       {loading && !spinnerTimeout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-70">
           <MoonLoader color="#a855f7" size={48} />
@@ -159,7 +200,6 @@ export default function Register() {
             </Link>
           </p>
         </div>
-
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             {error && (
@@ -244,7 +284,6 @@ export default function Register() {
                     name="address"
                     type="text"
                     autoComplete="street-address"
-                    required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"

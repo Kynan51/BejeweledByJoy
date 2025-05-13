@@ -8,10 +8,14 @@ import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: 'BejeweledByJoy',
-  description: 'BejeweledByJoy - Exquisite jewelry for every occasion',
+  description: 'Discover handcrafted beaded jewelry by Joy. Unique, colorful, and made with love. Handmade jewelry, beaded, custom jewelry, fashion accessories ',
   generator: 'Primal Code',
+  icons: {
+    icon: '/Bejewel-favicon2.png',
+    shortcut: '/Bejewel-favicon2.png',
+    apple: '/Bejewel-favicon2.png',
+  },
 }
-
 export default function RootLayout({
   children,
 }: Readonly<{
