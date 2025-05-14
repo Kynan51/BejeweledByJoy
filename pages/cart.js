@@ -18,18 +18,35 @@ export default function Cart() {
   const [spinnerTimeout, setSpinnerTimeout] = useState(false)
   const router = useRouter()
 
-  // Prevent spinner from blocking UI forever (fallback after 10s)
+  // Prevent spinner from blocking UI forever (fallback after 20s)
   useEffect(() => {
     if (!loading && !checkoutLoading) {
       setSpinnerTimeout(false);
       return;
     }
-    const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
+    const timeout = setTimeout(() => setSpinnerTimeout(true), 20000)
     return () => clearTimeout(timeout)
   }, [loading, checkoutLoading])
 
+  // Fallback: If not loading, not checking out, and cart is empty, show empty cart UI (prevents infinite spinner)
+  if (!loading && !checkoutLoading && cart.length === 0 && !error && !cartError) {
+    return (
+      <Layout>
+        <Head>
+          <title>Shopping Cart - BejeweledByJoy</title>
+        </Head>
+        <div className="mt-6 bg-white p-6 rounded-lg shadow-md text-center">
+          <p className="text-gray-500 mb-4">Your cart is empty.</p>
+          <Link href="/" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+            Continue Shopping
+          </Link>
+        </div>
+      </Layout>
+    )
+  }
+
   // If loading or spinnerTimeout, show spinner unless there is a real error
-  if ((loading || spinnerTimeout) && !error) {
+  if ((loading || spinnerTimeout) && !error && !cartError) {
     return (
       <Layout>
         <Head>
@@ -43,8 +60,9 @@ export default function Cart() {
                 Something went wrong. Please try refreshing the page.
                 <button
                   onClick={() => {
+                    setError(null);
                     setSpinnerTimeout(false);
-                    window.location.reload();
+                    if (typeof window !== 'undefined') window.location.reload();
                   }}
                   className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
                 >
@@ -72,7 +90,7 @@ export default function Cart() {
               onClick={() => {
                 setError(null);
                 setSpinnerTimeout(false);
-                window.location.reload();
+                if (typeof window !== 'undefined') window.location.reload();
               }}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
             >
@@ -176,6 +194,15 @@ export default function Cart() {
                   role="alert"
                 >
                   <span className="block sm:inline">{error}</span>
+                </div>
+              )}
+
+              {cartError && (
+                <div
+                  className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+                  role="alert"
+                >
+                  <span className="block sm:inline">{cartError}</span>
                 </div>
               )}
 

@@ -235,8 +235,10 @@ export function CartProvider({ children }) {
         // User is not logged in, add to localStorage
         addToCartLocal(product, quantity)
       }
+      setCartError(null)
     } catch (error) {
       console.error("Error adding to cart:", error)
+      setCartError("Failed to add item to cart. Please try again.")
     }
   }
 
@@ -316,8 +318,10 @@ export function CartProvider({ children }) {
 
         setCart([...cart, newCartItem])
       }
+      setCartError(null)
     } catch (error) {
       console.error("Error adding to database cart:", error)
+      setCartError("Failed to add item to cart. Please try again.")
     }
   }
 
@@ -374,8 +378,10 @@ export function CartProvider({ children }) {
       if (!session?.user) {
         localStorage.setItem("cart", JSON.stringify(updatedCart))
       }
+      setCartError(null)
     } catch (error) {
       console.error("Error removing from cart:", error)
+      setCartError("Failed to remove item from cart. Please try again.")
     }
   }
 
@@ -405,8 +411,10 @@ export function CartProvider({ children }) {
         // User is not logged in, update localStorage
         localStorage.setItem("cart", JSON.stringify(updatedCart))
       }
+      setCartError(null)
     } catch (error) {
       console.error("Error updating quantity:", error)
+      setCartError("Failed to update item quantity. Please try again.")
     }
   }
 
@@ -434,8 +442,10 @@ export function CartProvider({ children }) {
       if (!session?.user) {
         localStorage.removeItem("cart")
       }
+      setCartError(null)
     } catch (error) {
       console.error("Error clearing cart:", error)
+      setCartError("Failed to clear cart. Please try again.")
     }
   }
 
@@ -448,6 +458,9 @@ export function CartProvider({ children }) {
   function getCartItemCount() {
     return cart.reduce((count, item) => count + item.quantity, 0)
   }
+
+  // Expose a way to reset cartError from consumer
+  const resetCartError = useCallback(() => setCartError(null), [])
 
   // Wrap methods in useCallback
   const addToCartCb = useCallback(addToCart, [cart, session])
@@ -468,6 +481,7 @@ export function CartProvider({ children }) {
     clearCart: clearCartCb,
     getCartTotal: getCartTotalCb,
     getCartItemCount: getCartItemCountCb,
+    resetCartError,
   }), [cart, loading, cartError, addToCartCb, removeFromCartCb, updateQuantityCb, clearCartCb, getCartTotalCb, getCartItemCountCb])
 
   return (
