@@ -9,9 +9,10 @@ import Layout from "../components/Layout"
 import { useCart } from "../contexts/CartContext"
 import supabase from "../utils/supabaseClient"
 import { MoonLoader } from "react-spinners"
+import { fetchUserProfile } from "../lib/fetchers"
 
 export default function Cart() {
-  const { cart, loading, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
+  const { cart, loading, cartError, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart()
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState(null)
   const [spinnerTimeout, setSpinnerTimeout] = useState(false)
@@ -19,10 +20,69 @@ export default function Cart() {
 
   // Prevent spinner from blocking UI forever (fallback after 10s)
   useEffect(() => {
-    if (!loading && !checkoutLoading) return
+    if (!loading && !checkoutLoading) {
+      setSpinnerTimeout(false);
+      return;
+    }
     const timeout = setTimeout(() => setSpinnerTimeout(true), 10000)
     return () => clearTimeout(timeout)
   }, [loading, checkoutLoading])
+
+  // If loading or spinnerTimeout, show spinner unless there is a real error
+  if ((loading || spinnerTimeout) && !error) {
+    return (
+      <Layout>
+        <Head>
+          <title>Shopping Cart - BejeweledByJoy</title>
+        </Head>
+        <div className="mt-6 flex justify-center items-center min-h-[120px]">
+          <MoonLoader color="#7c3aed" size={48} />
+          {spinnerTimeout && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+              <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+                Something went wrong. Please try refreshing the page.
+                <button
+                  onClick={() => {
+                    setSpinnerTimeout(false);
+                    window.location.reload();
+                  }}
+                  className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Layout>
+    )
+  }
+
+  // If error, show error prompt
+  if (error || cartError) {
+    return (
+      <Layout>
+        <Head>
+          <title>Shopping Cart - BejeweledByJoy</title>
+        </Head>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
+          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
+            {error || cartError || "Something went wrong. Please try refreshing the page."}
+            <button
+              onClick={() => {
+                setError(null);
+                setSpinnerTimeout(false);
+                window.location.reload();
+              }}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
 
   const handleCheckout = async () => {
     try {
@@ -36,21 +96,10 @@ export default function Cart() {
       setCheckoutLoading(true)
       setError(null)
 
-      // Get user data
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("id, address, phone")
-        .eq("id", session.user.id)
-        .single()
+      // Get user data using fetchUserProfile (REST)
+      const userData = await fetchUserProfile(session.user.id)
 
-      if (userError) throw userError
-
-      // Check if user has address
-      if (!userData.address || !userData.phone) {
-        router.push("/profile?checkout=true")
-        return
-      }
-
+      // Remove address/phone check: always proceed to order creation
       // Create order
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -59,8 +108,8 @@ export default function Cart() {
             user_id: session.user.id,
             total_amount: getCartTotal(),
             status: "pending",
-            shipping_address: userData.address,
-            phone: userData.phone,
+            shipping_address: userData.address || "",
+            phone: userData.phone || "",
           },
         ])
         .select("id")
@@ -76,7 +125,6 @@ export default function Cart() {
         product_price: item.price,
         quantity: item.quantity,
       }))
-
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems)
 
       if (itemsError) throw itemsError
@@ -103,21 +151,6 @@ export default function Cart() {
         <meta name="keywords" content="handmade jewelry, beaded, custom jewelry, fashion accessories" />
         <meta name="author" content="Bejeweled By Joy" />
       </Head>
-
-      {/* Remove the overlay spinner, keep only the error prompt below */}
-      {spinnerTimeout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-90">
-          <div className="bg-white p-6 rounded shadow text-red-600 text-center flex flex-col items-center">
-            Something went wrong. Please try refreshing the page.
-            <button
-              onClick={() => { window.location.reload(true); }}
-              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded mx-auto"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -147,36 +180,73 @@ export default function Cart() {
               )}
 
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <ul className="divide-y divide-gray-200">
-                  {cart.map((item, idx) => (
-                    <li key={`${item.id}-${item.product_id || item.name}-${idx}`} className="p-6 flex items-center">
-                      <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                        {item.image ? (
-                          <Image
-                            src={item.image || "/placeholder.svg"}
-                            alt={item.name}
-                            width={80}
-                            height={80}
-                            sizes="80px"
-                            className="h-full w-full object-cover object-center"
-                          />
-                        ) : (
-                          <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-500 text-xs">No image</span>
-                          </div>
-                        )}
-                      </div>
+                <div className="overflow-x-auto">
+                  <ul className="divide-y divide-gray-200">
+                    {cart.map((item, idx) => (
+                      <li key={`${item.id}-${item.product_id || item.name}-${idx}`} className="p-6 flex items-center">
+                        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                          {item.image ? (
+                            <Image
+                              src={item.image || "/placeholder.svg"}
+                              alt={item.name}
+                              width={80}
+                              height={80}
+                              sizes="80px"
+                              className="h-full w-full object-cover object-center"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-500 text-xs">No image</span>
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="ml-6 flex-1">
-                        <h3 className="text-base font-medium text-gray-900">{item.name}</h3>
-                        <p className="mt-1 text-sm text-gray-500">Ksh{item.price.toFixed(2)}</p>
-                      </div>
+                        <div className="ml-6 flex-1">
+                          <h3 className="text-base font-medium text-gray-900">{item.name}</h3>
+                          <p className="mt-1 text-sm text-gray-500">Ksh{item.price.toFixed(2)}</p>
+                        </div>
 
-                      <div className="flex items-center">
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="text-gray-500 focus:outline-none focus:text-gray-600"
-                        >
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="text-gray-500 focus:outline-none focus:text-gray-600"
+                          >
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                          </button>
+                          <span className="mx-2 text-gray-700">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="text-gray-500 focus:outline-none focus:text-gray-600"
+                          >
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className="ml-6 text-base font-medium text-gray-900">
+                          Ksh{(item.price * item.quantity).toFixed(2)}
+                        </div>
+
+                        <button onClick={() => removeFromCart(item.id)} className="ml-6 text-red-500 hover:text-red-700">
                           <svg
                             className="h-5 w-5"
                             fill="none"
@@ -186,48 +256,13 @@ export default function Cart() {
                             viewBox="0 0 24 24"
                             stroke="currentColor"
                           >
-                            <path d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                           </svg>
                         </button>
-                        <span className="mx-2 text-gray-700">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="text-gray-500 focus:outline-none focus:text-gray-600"
-                        >
-                          <svg
-                            className="h-5 w-5"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                          </svg>
-                        </button>
-                      </div>
-
-                      <div className="ml-6 text-base font-medium text-gray-900">
-                        Ksh{(item.price * item.quantity).toFixed(2)}
-                      </div>
-
-                      <button onClick={() => removeFromCart(item.id)} className="ml-6 text-red-500 hover:text-red-700">
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
                 <div className="border-t border-gray-200 px-6 py-4">
                   <div className="flex justify-between text-base font-medium text-gray-900">

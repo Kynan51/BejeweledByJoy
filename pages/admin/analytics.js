@@ -20,6 +20,9 @@ export default function AdminAnalytics() {
     topProducts: [],
     viewsByDevice: [],
     topSalesProducts: [],
+    salesByDay: [],
+    dbColumnError: false,
+    dbColumnErrorMsg: "",
   })
   const [timeRange, setTimeRange] = useState("week")
   const [loadingAnalytics, setLoadingAnalytics] = useState(true)
@@ -86,7 +89,6 @@ export default function AdminAnalytics() {
         .select("id", { count: "exact" })
         .gte("viewed_at", startDateStr)
         .lt("viewed_at", endDateStr)
-
       if (viewsError) throw viewsError
 
       // Get views by day
@@ -96,7 +98,6 @@ export default function AdminAnalytics() {
         .gte("viewed_at", startDateStr)
         .lt("viewed_at", endDateStr)
         .order("viewed_at", { ascending: true })
-
       if (viewsByDayError) throw viewsByDayError
 
       // Process views by day
@@ -108,28 +109,27 @@ export default function AdminAnalytics() {
         .select("product_id, view_count")
         .order("view_count", { ascending: false })
         .limit(5)
-
       if (topProductsError) throw topProductsError
 
-      // Get product details for top products
-      let topProducts = []
-      if (topProductsData.length > 0) {
-        const productIds = topProductsData.map((item) => item.product_id)
-        const { data: productsData, error: productsError } = await supabase
-          .from("products")
-          .select("id, name, price, discount, image_urls")
-          .in("id", productIds)
-        if (productsError) throw productsError
-        // Combine view counts with product details
-        topProducts = productsData
-          .map((product) => {
-            const viewData = topProductsData.find((item) => item.product_id === product.id)
-            return {
-              ...product,
-              view_count: viewData ? viewData.view_count : 0,
-            }
+      // Fetch all products once for both sales and views analytics
+      const { data: productsData, error: productsError } = await supabase
+        .from("products")
+        .select("id, name, price, discount, image_urls, sold_count")
+        .order("sold_count", { ascending: false });
+      if (productsError) throw productsError;
+
+      // Get product details for top products (from productsData)
+      let topProducts = [];
+      if (topProductsData.length > 0 && productsData && productsData.length > 0) {
+        topProducts = topProductsData
+          .map((item) => {
+            const product = productsData.find((p) => p.id === item.product_id);
+            return product
+              ? { ...product, view_count: item.view_count }
+              : null;
           })
-          .sort((a, b) => b.view_count - a.view_count)
+          .filter(Boolean)
+          .sort((a, b) => b.view_count - a.view_count);
       }
 
       // Get views by device type (simplified)
@@ -138,52 +138,68 @@ export default function AdminAnalytics() {
         .select("user_agent")
         .gte("viewed_at", startDateStr)
         .lt("viewed_at", endDateStr)
-
       if (viewsByDeviceError) throw viewsByDeviceError
 
       // Process views by device
       const viewsByDevice = processViewsByDevice(viewsByDeviceData)
 
-      // Get top products by sales
-      const { data: topSalesData, error: topSalesError } = await supabase
-        .from("order_items")
-        .select("product_id, sum:quantity")
+      // Get top products by sales (use sold_count, but filter by time period)
+      let topSalesProducts = [];
+      let salesByDay = [];
+      // --- SALES TABLES & CHARTS: USE is_sold ---
+      // Get all fulfilled orders in the time period
+      const { data: fulfilledOrders, error: ordersError } = await supabase
+        .from("orders")
+        .select("id, created_at")
+        .eq("status", "fulfilled")
         .gte("created_at", startDateStr)
-        .lt("created_at", endDateStr)
-        .order("sum", { ascending: false })
-        .limit(5)
-
-      if (topSalesError) throw topSalesError
-
-      // Get product details for top sales
-      let topSalesProducts = []
-      if (topSalesData.length > 0) {
-        const productIds = topSalesData.map((item) => item.product_id)
-        const { data: productsData, error: productsError } = await supabase
-          .from("products")
-          .select("id, name, price, discount, image_urls")
-          .in("id", productIds)
-        if (productsError) throw productsError
-        topSalesProducts = productsData
-          .map((product) => {
-            const salesData = topSalesData.find((item) => item.product_id === product.id)
-            return {
-              ...product,
-              sales_count: salesData ? salesData.sum : 0,
-            }
-          })
-          .sort((a, b) => b.sales_count - a.sales_count)
+        .lt("created_at", endDateStr);
+      if (ordersError) throw ordersError;
+      const fulfilledOrderIds = (fulfilledOrders || []).map(o => o.id);
+      // Get all order_items for those orders, but only those marked is_sold = true
+      let salesMap = {};
+      let allOrderItems = [];
+      if (fulfilledOrderIds.length > 0) {
+        const { data: orderItems, error: itemsError } = await supabase
+          .from("order_items")
+          .select("product_id, quantity, created_at, is_sold")
+          .in("order_id", fulfilledOrderIds)
+          .eq("is_sold", true);
+        if (itemsError) throw itemsError;
+        allOrderItems = orderItems;
+        for (const item of orderItems) {
+          salesMap[item.product_id] = (salesMap[item.product_id] || 0) + item.quantity;
+        }
       }
-
+      topSalesProducts = (productsData || [])
+        .map(product => ({
+          ...product,
+          sales_count: salesMap[product.id] || 0,
+        }))
+        .filter(product => product.sales_count > 0)
+        .sort((a, b) => b.sales_count - a.sales_count)
+        .slice(0, 5);
+      salesByDay = processSalesByDay(allOrderItems, timeRange);
+      // --- END SALES TABLES & CHARTS ---
       setAnalytics({
-        totalViews: viewsData.length,
-        viewsByDay,
-        topProducts,
-        viewsByDevice,
-        topSalesProducts,
+        totalViews: viewsData ? viewsData.length : 0,
+        viewsByDay: viewsByDay || [],
+        topProducts: topProducts || [],
+        viewsByDevice: viewsByDevice || [],
+        topSalesProducts: topSalesProducts || [],
+        salesByDay: salesByDay || [],
+        dbColumnError: false,
+        dbColumnErrorMsg: '',
       })
     } catch (error) {
-      console.error("Error fetching analytics:", error)
+      // Defensive: Show a warning if a DB column is missing (e.g., is_sold, sold_count)
+      if (error && error.message && (error.message.includes('is_sold') || error.message.includes('sold_count'))) {
+        setAnalytics((prev) => ({
+          ...prev,
+          dbColumnError: true,
+          dbColumnErrorMsg: error.message,
+        }));
+      }
     } finally {
       setLoadingAnalytics(false)
     }
@@ -293,6 +309,78 @@ export default function AdminAnalytics() {
       .sort((a, b) => b.count - a.count)
   }
 
+  // --- SALES GRAPH DATA ---
+  function processSalesByDay(orderItems, timeRange) {
+    if (!orderItems || orderItems.length === 0) return [];
+    const now = new Date();
+    if (timeRange === "week") {
+      const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - now.getDay());
+      const dayMap = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(lastSunday);
+        d.setDate(lastSunday.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        dayMap[key] = 0;
+      }
+      orderItems.forEach((item) => {
+        const d = new Date(item.created_at);
+        const key = d.toISOString().slice(0, 10);
+        if (dayMap[key] !== undefined) dayMap[key] += item.quantity;
+      });
+      return weekDays.map((day, i) => {
+        const d = new Date(lastSunday);
+        d.setDate(lastSunday.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        return {
+          date: key,
+          label: day,
+          count: dayMap[key],
+          fullDate: d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+        };
+      });
+    } else if (timeRange === "month") {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const dayMap = {};
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(year, month, i);
+        const key = d.toISOString().slice(0, 10);
+        dayMap[key] = 0;
+      }
+      orderItems.forEach((item) => {
+        const d = new Date(item.created_at);
+        const key = d.toISOString().slice(0, 10);
+        if (dayMap[key] !== undefined) dayMap[key] += item.quantity;
+      });
+      return Object.keys(dayMap).map((key) => ({
+        date: key,
+        count: dayMap[key],
+        label: new Date(key).getDate().toString(),
+        fullDate: new Date(key).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+      }));
+    } else if (timeRange === "year") {
+      const year = now.getFullYear();
+      const monthMap = Array(12).fill(0);
+      orderItems.forEach((item) => {
+        const d = new Date(item.created_at);
+        if (d.getFullYear() === year) {
+          monthMap[d.getMonth()] += item.quantity;
+        }
+      });
+      return monthMap.map((count, i) => ({
+        date: new Date(year, i, 1).toISOString().slice(0, 10),
+        count,
+        label: new Date(year, i, 1).toLocaleString("en-US", { month: "short" }),
+        month: new Date(year, i, 1).toLocaleString("en-US", { month: "long" })
+      }));
+    }
+    return [];
+  }
+  // --- END SALES GRAPH DATA ---
+
   function getChartData(viewsByDay, timeRange) {
     if (!Array.isArray(viewsByDay)) return [];
     return viewsByDay.filter(d => d && typeof d === 'object' && d.label !== undefined).map((d) => {
@@ -372,6 +460,11 @@ export default function AdminAnalytics() {
         </div>
       )}
       <div className="py-6">
+        {analytics.dbColumnError && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded">
+            <b>Database column missing:</b> {analytics.dbColumnErrorMsg || 'A required column (like is_sold or sold_count) is missing from your database. Please check your schema.'}
+          </div>
+        )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">Analytics</h1>
         </div>
@@ -451,6 +544,12 @@ export default function AdminAnalytics() {
                   </div>
                 ) : (
                   <>
+                    {analytics.dbColumnError && (
+                      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                        <strong className="font-bold">Warning:</strong>
+                        <span className="block sm:inline"> {analytics.dbColumnErrorMsg}</span>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                       <div className="bg-white overflow-hidden shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
@@ -587,6 +686,29 @@ export default function AdminAnalytics() {
 
                     <div className="mt-8 bg-white shadow rounded-lg">
                       <div className="px-4 py-5 sm:p-6">
+                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Sales Over Time</h3>
+                        {analytics.salesByDay && analytics.salesByDay.length > 0 ? (
+                          <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={getChartData(analytics.salesByDay, timeRange)} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="label" />
+                                <YAxis allowDecimals={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Line type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : (
+                          <div className="flex justify-center items-center h-64 bg-gray-50 rounded-lg">
+                            <p className="text-gray-500">No sales data available for this time period.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-8 bg-white shadow rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Views by Device</h3>
 
                         {analytics.viewsByDevice.length > 0 ? (
@@ -614,41 +736,29 @@ export default function AdminAnalytics() {
                               <div className="w-48 h-48 relative">
                                 {/* Simple pie chart visualization */}
                                 <svg viewBox="0 0 100 100" className="w-full h-full">
-                                  {
-                                    analytics.viewsByDevice.reduce(
-                                      (acc, device, index) => {
-                                        const percentage = (device.count / analytics.totalViews) * 100
-                                        const previousPercentage = acc.previousPercentage
-
-                                        // Calculate the SVG arc path
-                                        const startAngle = (previousPercentage / 100) * 360
-                                        const endAngle = ((previousPercentage + percentage) / 100) * 360
-
-                                        const x1 = 50 + 40 * Math.cos((startAngle - 90) * (Math.PI / 180))
-                                        const y1 = 50 + 40 * Math.sin((startAngle - 90) * (Math.PI / 180))
-                                        const x2 = 50 + 40 * Math.cos((endAngle - 90) * (Math.PI / 180))
-                                        const y2 = 50 + 40 * Math.sin((endAngle - 90) * (Math.PI / 180))
-
-                                        const largeArcFlag = percentage > 50 ? 1 : 0
-
-                                        // Generate a color based on index
-                                        const colors = ["#9333ea", "#a855f7", "#c084fc", "#d8b4fe", "#e9d5ff"]
-                                        const color = colors[index % colors.length]
-
-                                        acc.paths.push(
-                                          <path
-                                            key={index}
-                                            d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                                            fill={color}
-                                          />,
-                                        )
-
-                                        acc.previousPercentage += percentage
-                                        return acc
-                                      },
-                                      { paths: [], previousPercentage: 0 },
-                                    ).paths
-                                  }
+                                  {(() => {
+                                    let previousPercentage = 0;
+                                    const colors = ["#9333ea", "#a855f7", "#c084fc", "#d8b4fe", "#e9d5ff"];
+                                    return analytics.viewsByDevice.map((device, index) => {
+                                      const percentage = (device.count / analytics.totalViews) * 100;
+                                      const startAngle = (previousPercentage / 100) * 360;
+                                      const endAngle = ((previousPercentage + percentage) / 100) * 360;
+                                      const x1 = 50 + 40 * Math.cos((startAngle - 90) * (Math.PI / 180));
+                                      const y1 = 50 + 40 * Math.sin((startAngle - 90) * (Math.PI / 180));
+                                      const x2 = 50 + 40 * Math.cos((endAngle - 90) * (Math.PI / 180));
+                                      const y2 = 50 + 40 * Math.sin((endAngle - 90) * (Math.PI / 180));
+                                      const largeArcFlag = percentage > 50 ? 1 : 0;
+                                      const color = colors[index % colors.length];
+                                      previousPercentage += percentage;
+                                      return (
+                                        <path
+                                          key={index}
+                                          d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                          fill={color}
+                                        />
+                                      );
+                                    });
+                                  })()}
                                 </svg>
                               </div>
                             </div>

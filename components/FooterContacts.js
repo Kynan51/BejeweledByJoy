@@ -7,7 +7,7 @@ export default function FooterContacts() {
       <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 w-full sm:w-auto text-center">
         <span className="font-medium">Contact Us:</span>{' '}
         <a href="mailto:info@bejeweledbyjoy.com" className="text-purple-700 hover:underline break-all">info@bejeweledbyjoy.com</a>{' '}|
-        <a href="tel:+254759840063" className="text-purple-700 hover:underline ml-1">+254759840063</a>
+        <a href="tel:+254759840063" className="text-purple-700 hover:underline ml-1">+254768856680</a>
       </div>
       <div className="flex items-center gap-3 mt-2 md:mt-0 w-full sm:w-auto justify-center md:justify-end">
         <a href="https://www.facebook.com/bejeweledbyjoy" target="_blank" rel="noopener noreferrer" aria-label="Facebook">

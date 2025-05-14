@@ -9,6 +9,7 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([])
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState(null)
+  const [cartError, setCartError] = useState(null)
 
   // Initialize cart and listen for auth changes
   useEffect(() => {
@@ -34,6 +35,7 @@ export function CartProvider({ children }) {
   // Load cart data from localStorage or database
   async function loadCartData(session) {
     setLoading(true)
+    setCartError(null)
 
     try {
       if (session?.user) {
@@ -47,6 +49,7 @@ export function CartProvider({ children }) {
     } catch (error) {
       console.error("Error loading cart:", error)
       setCart([]) // fallback to empty cart on error
+      setCartError("Failed to load cart. Please try again later.")
     } finally {
       setLoading(false)
     }
@@ -131,6 +134,7 @@ export function CartProvider({ children }) {
     } catch (error) {
       console.error("Error loading cart from database:", error)
       setCart([]) // fallback to empty cart on error
+      setCartError("Failed to load cart from database. Please try again later.")
     }
   }
 
@@ -448,13 +452,14 @@ export function CartProvider({ children }) {
   const contextValue = useMemo(() => ({
     cart,
     loading,
+    cartError,
     addToCart: addToCartCb,
     removeFromCart: removeFromCartCb,
     updateQuantity: updateQuantityCb,
     clearCart: clearCartCb,
     getCartTotal: getCartTotalCb,
     getCartItemCount: getCartItemCountCb,
-  }), [cart, loading, addToCartCb, removeFromCartCb, updateQuantityCb, clearCartCb, getCartTotalCb, getCartItemCountCb])
+  }), [cart, loading, cartError, addToCartCb, removeFromCartCb, updateQuantityCb, clearCartCb, getCartTotalCb, getCartItemCountCb])
 
   return (
     <CartContext.Provider value={contextValue}>

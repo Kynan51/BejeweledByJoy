@@ -83,6 +83,30 @@ export default function AdminNav({ isAdmin }) {
         </svg>
         Analytics
       </Link>
+      <Link href="/admin/orders" className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive("/admin/orders")}`}> 
+        <svg
+          className="text-gray-400 group-hover:text-gray-500 mr-3 flex-shrink-0 h-6 w-6"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+          />
+        </svg>
+        <span className="relative">
+          Orders
+          {typeof window !== 'undefined' && window.__PENDING_ORDERS_COUNT__ > 0 && (
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white align-top absolute -top-2 -right-6">
+              {window.__PENDING_ORDERS_COUNT__}
+            </span>
+          )}
+        </span>
+      </Link>
       <Link href="/admin/admins" className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md ${isActive("/admin/admins")}`}> 
         <svg
           xmlns="http://www.w3.org/2000/svg"

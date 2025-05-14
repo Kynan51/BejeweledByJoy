@@ -20,6 +20,7 @@ const adminTabs = [
   { label: "Dashboard", path: "/admin" },
   { label: "Products", path: "/admin/products" },
   { label: "Analytics", path: "/admin/analytics" },
+  { label: "Orders", path: "/admin/orders" },
   // Manage Admins will be conditionally added below
 ];
 
@@ -27,6 +28,7 @@ const dashboardTabs = [
   { label: "Overview", value: "overview" },
   { label: "Analytics", value: "analytics" },
   { label: "Manage Products", value: "products" },
+  { label: "Orders", value: "orders" },
   // Manage Admins will be conditionally added below
 ];
 
@@ -38,12 +40,14 @@ export function DashboardTabs({ isOwner }) {
     overview: "/admin",
     analytics: "/admin/analytics",
     products: "/admin/products",
+    orders: "/admin/orders",
     admins: "/admin/admins",
   }
   // Determine current tab from route
   let currentTab = "overview"
   if ((router.pathname || router.asPath) === "/admin/analytics") currentTab = "analytics"
   else if ((router.pathname || router.asPath) === "/admin/products") currentTab = "products"
+  else if ((router.pathname || router.asPath) === "/admin/orders") currentTab = "orders"
   else if ((router.pathname || router.asPath) === "/admin/admins") currentTab = "admins"
 
   // Only show Manage Admins tab if owner

@@ -18,6 +18,7 @@ export default function AdminDashboard() {
     mostViewedProducts: [],
   });
   const [spinnerTimeout, setSpinnerTimeout] = useState(false);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   const userEmail = session?.user?.email || null;
   const role = userEmail ? getUserRole(userEmail) : null;
@@ -52,6 +53,21 @@ export default function AdminDashboard() {
         .catch((err) => {
           // Optionally handle error
           setStats({ totalProducts: 0, totalViews: 0, mostViewedProducts: [] });
+        });
+      // Fetch pending orders count
+      fetch("/api/admin-list-pending-orders")
+        .then((res) => res.json())
+        .then((data) => {
+          setPendingOrdersCount(data.count || 0);
+          if (typeof window !== 'undefined') {
+            window.__PENDING_ORDERS_COUNT__ = data.count || 0;
+          }
+        })
+        .catch(() => {
+          setPendingOrdersCount(0);
+          if (typeof window !== 'undefined') {
+            window.__PENDING_ORDERS_COUNT__ = 0;
+          }
         });
     }
   }, [loading, isAdmin, isOwner]);
@@ -137,6 +153,17 @@ export default function AdminDashboard() {
                           <dd className="mt-1 text-3xl font-semibold text-gray-900">
                             {stats.totalProducts > 0 ? Math.round(stats.totalViews / stats.totalProducts) : 0}
                           </dd>
+                        </div>
+                      </div>
+                      <div className="bg-white overflow-hidden shadow rounded-lg">
+                        <div className="px-4 py-5 sm:p-6 flex items-center justify-between">
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Pending Orders</dt>
+                            <dd className="mt-1 text-3xl font-semibold text-gray-900">{pendingOrdersCount}</dd>
+                          </div>
+                          <a href="/admin/orders" className="inline-flex items-center px-3 py-2 border border-purple-600 text-sm font-medium rounded-md text-purple-700 bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ml-4">
+                            View Orders
+                          </a>
                         </div>
                       </div>
                     </div>

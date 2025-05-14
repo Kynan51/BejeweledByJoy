@@ -28,6 +28,12 @@ CREATE TABLE public.products (
 ) WITH (OIDS=FALSE);
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE public.products
+ADD COLUMN quantity integer NOT NULL DEFAULT 0;
+
+ALTER TABLE public.products
+ADD COLUMN sold_count integer NOT NULL DEFAULT 0;
+
 -- Create the cart_items table
 CREATE TABLE public.cart_items (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -108,7 +114,3 @@ CREATE TABLE public.wishlists (
     FOREIGN KEY (product_id) REFERENCES public.products (id)
 ) WITH (OIDS=FALSE);
 ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE public.products
-ADD COLUMN quantity integer NOT NULL DEFAULT 0;

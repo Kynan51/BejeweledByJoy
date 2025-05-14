@@ -4,7 +4,7 @@ import { useState } from "react"
 
 export default function WhatsAppButton() {
   const [isOpen, setIsOpen] = useState(false)
-  const phoneNumber = "+254759840063" // Replace with your WhatsApp number
+  const phoneNumber = "+254768856680" // Replace with your WhatsApp number
 
 const handleWhatsAppClick = () => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
