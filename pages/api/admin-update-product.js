@@ -11,14 +11,14 @@ export default async function handler(req, res) {
   }
 
   // TODO: Replace with real admin authentication logic
-  const { id, name, description, price, discount, image_urls, quantity } = req.body;
+  const { id, name, description, price, discount, image_urls, quantity, category } = req.body;
   if (!id) {
     return res.status(400).json({ error: 'Missing product id' });
   }
 
   const { data, error } = await supabase
     .from('products')
-    .update({ name, description, price, discount, image_urls, quantity })
+    .update({ name, description, price, discount, image_urls, quantity, category })
     .eq('id', id)
     .select('id, name, description, price, discount, image_urls, quantity')
     .single();

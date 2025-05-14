@@ -47,14 +47,14 @@ export default function Login() {
 
   // Only one redirect after login: respects ?redirect param (to /profile), else to /
   useEffect(() => {
-    if (!authLoading && session) {
+    if (!authLoading && session && router.pathname === "/login") {
       if (redirect === "/profile") {
         router.replace("/profile");
       } else {
         router.replace("/");
       }
     }
-  }, [session, authLoading, redirect]);
+  }, [session, authLoading, redirect, router.pathname]);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -83,7 +83,7 @@ export default function Login() {
         access_token: data.access_token,
         refresh_token: data.refresh_token
       });
-      // Refresh context/session state after login
+      // Always await refreshAuth after setSession
       if (refreshAuth) await refreshAuth();
       // Fetch user profile via REST and store in localStorage
       if (data.user && data.user.id) {
@@ -103,6 +103,7 @@ export default function Login() {
       // Redirect will be handled by the consolidated useEffect below
     } catch (err) {
       setError(err.message);
+      setPassword(""); // Clear password field on error
     } finally {
       setLoading(false);
     }

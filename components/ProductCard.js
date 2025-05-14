@@ -82,7 +82,12 @@ export default function ProductCard({ product, trackView = true }) {
       </div>
 
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-1 truncate">{product.name}</h3>
+        <div className="ml-4 flex-1">
+          <h3 className="text-lg font-semibold text-gray-800 mb-1 truncate">{product.name}</h3>
+          {product.category && (
+            <div className="text-xs text-gray-500 mt-0.5">{product.category}</div>
+          )}
+        </div>
 
         <div className="flex items-end mb-2">
           <span className="text-lg font-bold text-purple-600">Ksh{discountedPrice.toFixed(2)}</span>

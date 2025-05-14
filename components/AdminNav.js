@@ -101,7 +101,7 @@ export default function AdminNav({ isAdmin }) {
         <span className="relative">
           Orders
           {typeof window !== 'undefined' && window.__PENDING_ORDERS_COUNT__ > 0 && (
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white align-top absolute -top-2 -right-6">
+            <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs rounded-full px-0.5 py-0.5 font-bold border border-white z-10 min-w-[20px] text-center">
               {window.__PENDING_ORDERS_COUNT__}
             </span>
           )}

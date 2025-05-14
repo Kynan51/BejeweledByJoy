@@ -18,6 +18,7 @@ interface Filters {
   maxPrice?: string
   hasDiscount?: string
   sortBy?: string
+  category?: string
 }
 
 export default function Home() {

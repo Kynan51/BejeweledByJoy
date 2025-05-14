@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   // TODO: Replace with real admin authentication logic
-  const { name, description, price, discount, image_urls, quantity } = req.body;
+  const { name, description, price, discount, image_urls, quantity, category } = req.body;
   if (!name || !price) {
     // console.log('Missing required fields', req.body);
     return res.status(400).json({ error: 'Missing required fields' });
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('products')
-      .insert([{ name, description, price, discount, image_urls, quantity }])
+      .insert([{ name, description, price, discount, image_urls, quantity, category }])
       .select('id, name, description, price, discount, image_urls, quantity')
       .single();
     if (error) {

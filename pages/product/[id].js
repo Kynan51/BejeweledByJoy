@@ -139,6 +139,9 @@ export default function ProductDetail() {
               </div>
               <div className="mt-6 md:mt-0 md:ml-10 md:w-1/2">
                 <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{product.name}</h1>
+                {product.category && (
+                  <div className="mt-1 text-sm text-gray-500 font-medium">{product.category}</div>
+                )}
                 <div className="mt-3">
                   <div className="flex items-end">
                     <p className="text-3xl font-bold text-purple-600">Ksh{discountedPrice?.toFixed(2)}</p>

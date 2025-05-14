@@ -113,6 +113,22 @@ export default function ActiveFilters({ filters }) {
           </span>
         )}
 
+        {filters.category && (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            Category: {filters.category}
+            <button
+              type="button"
+              className="ml-1 inline-flex flex-shrink-0 h-4 w-4 rounded-full items-center justify-center text-purple-400 hover:bg-purple-200 hover:text-purple-500 focus:outline-none focus:bg-purple-500 focus:text-white"
+              onClick={() => removeFilter("category")}
+            >
+              <span className="sr-only">Remove category filter</span>
+              <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
+              </svg>
+            </button>
+          </span>
+        )}
+
         <button
           type="button"
           className="text-sm font-medium text-purple-600 hover:text-purple-500"

@@ -29,6 +29,7 @@ export default function AdminProducts() {
     discount: 0,
     image_urls: [],
     quantity: 0,
+    category: "",
   });
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,6 +85,7 @@ export default function AdminProducts() {
       discount: 0,
       image_urls: [],
       quantity: 0,
+      category: "",
     });
     setUploadedImages([]);
     setFormError(null);
@@ -95,7 +97,7 @@ export default function AdminProducts() {
     try {
       setLoadingProducts(true);
       // Fetch single product via REST API
-      const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${product.id}&select=id,name,description,price,discount,image_urls,quantity`;
+      const url = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/products?id=eq.${product.id}&select=id,name,description,price,discount,image_urls,quantity,category`;
       const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       const res = await fetch(url, {
         headers: {
@@ -115,6 +117,7 @@ export default function AdminProducts() {
         discount: data.discount || 0,
         image_urls: (data.image_urls || []).filter((url) => url && url !== "null" && url !== "undefined"),
         quantity: data.quantity || 0,
+        category: data.category || "",
       });
       setUploadedImages([]);
       setFormError(null);
@@ -256,6 +259,11 @@ export default function AdminProducts() {
       return;
     }
 
+    if (!currentProduct.category) {
+      setFormError("Product category is required.");
+      return;
+    }
+
     try {
       setIsUploading(true);
 
@@ -285,6 +293,7 @@ export default function AdminProducts() {
         discount: Number.parseInt(currentProduct.discount) || 0,
         image_urls: allImageUrls,
         quantity: Number.parseInt(currentProduct.quantity) || 0,
+        category: currentProduct.category,
       };
 
       // console.log("Sending productData to API:", productData);
@@ -573,12 +582,8 @@ export default function AdminProducts() {
                   </div>
                 </Modal>
               ) : (
-                <Modal
-                  isOpen={isModalOpen}
-                  onClose={closeModal}
-                >
-                  {/* {console.log('[DEBUG] Modal render, currentProduct:', currentProduct)} */}
-                  <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] sm:max-h-[80vh] overflow-y-auto p-2 w-[95vw] max-w-md sm:max-w-xl mx-auto rounded-lg bg-white z-[1201]">
+                <Modal isOpen={isModalOpen} onClose={closeModal} hideClose={modalMode === 'add' || modalMode === 'edit'}>
+                  <form onSubmit={handleSubmit} className="space-y-0 max-h-[70vh] sm:max-h-[80vh] overflow-y-auto overflow-x-hidden p-[0px] w-full max-w-[98vw] sm:max-w-2xl mx-auto rounded-lg bg-white z-[1201]">
                     <h2 className="text-lg font-bold mb-2 text-center">{modalMode === 'edit' ? 'Edit Product' : 'Add Product'}</h2>
                     {formError && <div className="text-red-600 text-sm mb-2">{formError}</div>}
                     <div className="flex flex-col gap-4">
@@ -641,6 +646,31 @@ export default function AdminProducts() {
                           />
                         </label>
                       </div>
+                      <label className="font-medium">Category
+                        <select
+                          name="category"
+                          value={currentProduct.category || ""}
+                          onChange={handleInputChange}
+                          className="w-full border rounded px-3 py-2 mt-1"
+                          required
+                        >
+                          <option value="">Select Category</option>
+                          <option value="Rings">Rings</option>
+                          <option value="Necklaces">Necklaces</option>
+                          <option value="Chains">Chains</option>
+                          <option value="Lockets">Lockets</option>
+                          <option value="Pendants">Pendants</option>
+                          <option value="Earrings">Earrings</option>
+                          <option value="Bracelets">Bracelets</option>
+                          <option value="Bangles">Bangles</option>
+                          <option value="Charm Bracelets">Charm Bracelets</option>
+                          <option value="Anklets">Anklets</option>
+                          <option value="Belly Rings">Belly Rings</option>
+                          <option value="Brooches & Pins">Brooches & Pins</option>
+                          <option value="Nose Rings">Nose Rings</option>
+                          <option value="Others">Others</option>
+                        </select>
+                      </label>
                     </div>
                     {/* Images Preview Section with drag-and-drop and remove */}
                     <div className="mt-4">

@@ -17,6 +17,9 @@ export async function fetchProductsSWR([_key, filters]: [string, any]) {
     if (filters.hasDiscount) {
       query.push(`discount=gt.0`);
     }
+    if (filters.category) {
+      query.push(`category=eq.${encodeURIComponent(filters.category)}`);
+    }
   }
   // Sorting
   let order = "created_at.desc";
