@@ -394,15 +394,18 @@ export default function AdminAnalytics() {
     });
   }
 
-  function CustomTooltip({ active, payload, label }) {
+  function CustomTooltip({ active, payload, label, chartType }) {
     if (!active || !payload || !payload.length) return null;
     const data = payload[0].payload;
+    // Determine if this is a sales or views chart
+    const isSales = chartType === 'sales' || (payload[0].color === '#22c55e'); // green line for sales
+    const labelText = isSales ? 'Items sold' : 'Views';
     if (data.range) {
       // Month view
       return (
         <div className="bg-white p-2 rounded shadow text-xs">
           <div><b>{data.label}</b> ({data.range})</div>
-          <div>Views: {data.count}</div>
+          <div>{labelText}: {data.count}</div>
         </div>
       );
     } else if (data.month) {
@@ -410,7 +413,7 @@ export default function AdminAnalytics() {
       return (
         <div className="bg-white p-2 rounded shadow text-xs">
           <div><b>{data.month}</b></div>
-          <div>Views: {data.count}</div>
+          <div>{labelText}: {data.count}</div>
         </div>
       );
     } else {
@@ -418,7 +421,7 @@ export default function AdminAnalytics() {
       return (
         <div className="bg-white p-2 rounded shadow text-xs">
           <div><b>{data.label}</b> ({data.fullDate})</div>
-          <div>Views: {data.count}</div>
+          <div>{labelText}: {data.count}</div>
         </div>
       );
     }
@@ -606,7 +609,7 @@ export default function AdminAnalytics() {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="label" />
                                 <YAxis allowDecimals={false} />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip chartType="views" />} />
                                 <Line type="monotone" dataKey="count" stroke="#a855f7" strokeWidth={2} dot={false} />
                               </LineChart>
                             </ResponsiveContainer>
@@ -694,7 +697,7 @@ export default function AdminAnalytics() {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="label" />
                                 <YAxis allowDecimals={false} />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip chartType="sales" />} />
                                 <Line type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={2} dot={false} />
                               </LineChart>
                             </ResponsiveContainer>

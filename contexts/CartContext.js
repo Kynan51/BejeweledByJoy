@@ -82,7 +82,11 @@ export function CartProvider({ children }) {
       }
 
       // Get cart items
-      if (!userCart || !userCart.id) return; // Prevent invalid queries
+      if (!userCart || !userCart.id) {
+        setCart([])
+        setLoading(false)
+        return; // Prevent invalid queries
+      }
       const { data: cartItems, error: itemsError } = await supabase
         .from("cart_items")
         .select(
@@ -135,6 +139,8 @@ export function CartProvider({ children }) {
       console.error("Error loading cart from database:", error)
       setCart([]) // fallback to empty cart on error
       setCartError("Failed to load cart from database. Please try again later.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -142,28 +148,31 @@ export function CartProvider({ children }) {
   async function mergeLocalCartWithDatabase(localCart, cartId) {
     try {
       for (const item of localCart) {
-        if (!cartId || !item.id) continue; // Prevent invalid queries
+        // Always prefer product_id, fallback to id for legacy/edge cases
+        const productId = item.product_id || item.id;
+        const quantity = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+        if (!cartId || !productId) continue; // Prevent invalid queries
         // Check if product already exists in cart
         const { data: existingItem } = await supabase
           .from("cart_items")
           .select("id, quantity")
           .eq("cart_id", cartId)
-          .eq("product_id", item.id)
+          .eq("product_id", productId)
           .single();
 
         if (existingItem) {
           // Update quantity if product already exists
           await supabase
             .from("cart_items")
-            .update({ quantity: existingItem.quantity + item.quantity })
+            .update({ quantity: existingItem.quantity + quantity })
             .eq("id", existingItem.id)
         } else {
           // Add new product to cart
           await supabase.from("cart_items").insert([
             {
               cart_id: cartId,
-              product_id: item.id,
-              quantity: item.quantity,
+              product_id: productId,
+              quantity: quantity,
             },
           ])
         }

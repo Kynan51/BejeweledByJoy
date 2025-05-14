@@ -28,6 +28,7 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
 
   const handleSearch = (e) => {
     e.preventDefault()
+    setIsExpanded(false) // Collapse filters after search
 
     const filters = {
       search: searchTerm,
@@ -52,11 +53,13 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
     }
   }
 
+  // When filters are cleared, also collapse the filter panel
   const handleClearFilters = () => {
     setSearchTerm("")
     setPriceRange({ min: "", max: "" })
     setHasDiscount(false)
     setSortBy("newest")
+    setIsExpanded(false)
 
     router.push("/")
 
@@ -102,7 +105,9 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
               <button
                 type="button"
                 className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 w-40% md:w-auto"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => setIsExpanded((prev) => !prev)}
+                aria-expanded={isExpanded}
+                aria-controls="filter-panel"
               >
                 <svg
                   className="-ml-0.5 mr-2 h-4 w-4"
@@ -129,7 +134,7 @@ export default function SearchAndFilter({ onSearch, initialFilters = {} }) {
           </div>
 
           {isExpanded && (
-            <div className="mt-4 grid grid-cols-1 gap-y-4 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-4">
+            <div id="filter-panel" className="mt-4 grid grid-cols-1 gap-y-4 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-4">
               <div>
                 <label htmlFor="min-price" className="block text-sm font-medium text-gray-700">
                   Min Price

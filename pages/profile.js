@@ -24,7 +24,7 @@ import {
 const PAGE_SIZE = 10;
 
 export default function Profile() {
-  const { session, loading } = useAuth();
+  const { session, loading, refreshAuth } = useAuth();
   const [user, setUser] = useState(null);
   const [userLoading, setUserLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
@@ -174,18 +174,28 @@ export default function Profile() {
       setFormLoading(true);
       setError(null);
       setMessage(null);
-      await updateUserProfile(session.user.id, {
+      const result = await updateUserProfile(session.user.id, {
         full_name: formData.full_name,
         address: formData.address,
         phone: formData.phone,
         email: user?.email || "",
       });
-      setMessage("Profile updated successfully!");
-      if (checkout) {
-        router.push("/cart");
+      // Accept { success: true } as a valid success response
+      if ((result && result.success) || (Array.isArray(result) && result.length > 0) || (typeof result === 'object' && Object.keys(result).length > 0)) {
+        setMessage("Profile updated successfully!");
+        setError(null);
+        setTimeout(() => setMessage(null), 3000); // Hide success after 3s
+        if (checkout) {
+          router.push("/cart");
+        }
+      } else {
+        setError("Failed to update profile. Please try again.");
+        setMessage(null);
+        setTimeout(() => setError(null), 3000); // Hide error after 3s
       }
     } catch (error) {
       setError("Failed to update profile. Please try again.");
+      setTimeout(() => setError(null), 3000); // Hide error after 3s
     } finally {
       setFormLoading(false);
     }
@@ -260,22 +270,23 @@ export default function Profile() {
     }
   };
 
+  // Fix sign out to use supabase and refreshAuth from context
   const handleSignOut = async () => {
-    // Remove all possible auth and profile data from localStorage instantly
     if (typeof window !== "undefined") {
       localStorage.removeItem("userRoleCache");
       localStorage.removeItem("sb-access-token");
       localStorage.removeItem("sb-refresh-token");
       localStorage.removeItem("sb-user-profile");
-      // Remove any other app-specific keys if needed
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("sb-") || key.startsWith("supabase")) {
           localStorage.removeItem(key);
         }
       });
     }
-    // Optionally call signOut on supabase, but don't wait for it
-    supabase.auth.signOut();
+    // Use supabaseClient directly
+    const supabase = (await import("../utils/supabaseClient")).default;
+    await supabase.auth.signOut();
+    if (refreshAuth) await refreshAuth();
     router.push("/login");
   };
 

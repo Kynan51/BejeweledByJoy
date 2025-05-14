@@ -45,18 +45,7 @@ export default function Login() {
     return () => clearTimeout(timeout);
   }, [loading, initialCheck, authLoading]);
 
-  // Redirect after login based on role
-  useEffect(() => {
-    if (!authLoading && session) {
-      if (isAdmin || isOwner) {
-        router.replace("/admin");
-      } else {
-        router.replace("/profile");
-      }
-    }
-  }, [authLoading, session, isAdmin, isOwner]);
-
-  // Redirect after login: if coming from /profile, go to /profile; else go to main page
+  // Only one redirect after login: respects ?redirect param (to /profile), else to /
   useEffect(() => {
     if (!authLoading && session) {
       if (redirect === "/profile") {
@@ -94,6 +83,8 @@ export default function Login() {
         access_token: data.access_token,
         refresh_token: data.refresh_token
       });
+      // Refresh context/session state after login
+      if (refreshAuth) await refreshAuth();
       // Fetch user profile via REST and store in localStorage
       if (data.user && data.user.id) {
         const profileUrl = `https://izorbgujgfqtugtewxap.supabase.co/rest/v1/users?id=eq.${data.user.id}`;
@@ -109,8 +100,7 @@ export default function Login() {
           localStorage.setItem("sb-user-profile", JSON.stringify(profileData[0]));
         }
       }
-      // Redirect to main page or profile
-      router.replace("/");
+      // Redirect will be handled by the consolidated useEffect below
     } catch (err) {
       setError(err.message);
     } finally {
