@@ -235,7 +235,9 @@ export default function Cart() {
 
                         <div className="flex items-center">
                           <button
-                            onClick={() => updateQuantity(item.product_id || item.id, item.quantity - 1)}
+                            onClick={() => {
+                              updateQuantity(item.id, item.quantity - 1);
+                            }}
                             className="text-gray-500 focus:outline-none focus:text-gray-600"
                           >
                             <svg
@@ -252,7 +254,9 @@ export default function Cart() {
                           </button>
                           <span className="mx-2 text-gray-700">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.product_id || item.id, item.quantity + 1)}
+                            onClick={() => {
+                              updateQuantity(item.id, item.quantity + 1);
+                            }}
                             className="text-gray-500 focus:outline-none focus:text-gray-600"
                           >
                             <svg
@@ -273,7 +277,9 @@ export default function Cart() {
                           Ksh{(item.price * item.quantity).toFixed(2)}
                         </div>
 
-                        <button onClick={() => removeFromCart(item.product_id || item.id)} className="ml-6 text-red-500 hover:text-red-700">
+                        <button onClick={() => {
+                          removeFromCart(item.id);
+                        }} className="ml-6 text-red-500 hover:text-red-700">
                           <svg
                             className="h-5 w-5"
                             fill="none"

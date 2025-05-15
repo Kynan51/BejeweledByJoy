@@ -81,7 +81,14 @@ export function CartProvider({ children }) {
         userCart = newCart
       }
 
-      // Get cart items
+      // Always merge local cart with DB cart, even if DB cart is empty
+      const localCart = JSON.parse(localStorage.getItem("cart") || "[]")
+      if (localCart.length > 0) {
+        await mergeLocalCartWithDatabase(localCart, userCart.id)
+        localStorage.removeItem("cart")
+      }
+
+      // Get cart items after merge
       if (!userCart || !userCart.id) {
         setCart([])
         setLoading(false)
@@ -109,14 +116,12 @@ export function CartProvider({ children }) {
 
       // Format cart items
       const formattedCart = (cartItems || []).map((item) => {
-        // Defensive: skip null or malformed items
         if (!item || !item.products) return null;
         const price = typeof item.products.price === 'number' ? item.products.price : 0;
         const discount = typeof item.products.discount === 'number' ? item.products.discount : 0;
         const discountedPrice = discount > 0
           ? price - price * (discount / 100)
           : price;
-
         return {
           id: item.id,
           product_id: item.product_id,
@@ -125,19 +130,11 @@ export function CartProvider({ children }) {
           image: Array.isArray(item.products.image_urls) && item.products.image_urls.length > 0 ? item.products.image_urls[0] : null,
           quantity: item.quantity,
         };
-      }).filter(Boolean); // Remove any nulls from the array
-
+      }).filter(Boolean);
       setCart(formattedCart)
-
-      // If there's a local cart, merge it with the database cart
-      const localCart = JSON.parse(localStorage.getItem("cart") || "[]")
-      if (localCart.length > 0) {
-        await mergeLocalCartWithDatabase(localCart, userCart.id)
-        localStorage.removeItem("cart")
-      }
     } catch (error) {
       console.error("Error loading cart from database:", error)
-      setCart([]) // fallback to empty cart on error
+      setCart([])
       setCartError("Failed to load cart from database. Please try again later.")
     } finally {
       setLoading(false)
