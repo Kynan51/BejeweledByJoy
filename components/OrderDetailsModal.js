@@ -105,13 +105,15 @@ export default function OrderDetailsModal({ orderId, open, onClose }) {
               </ul>
             </div>
             <div className="mt-6 flex justify-center">
-              <Button
-                variant="default"
-                onClick={markFulfilled}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-1.5 rounded shadow text-base"
-              >
-                Mark as Fulfilled
-              </Button>
+              {order.status !== "fulfilled" && (
+                <Button
+                  variant="default"
+                  onClick={markFulfilled}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-1.5 rounded shadow text-base"
+                >
+                  Mark as Fulfilled
+                </Button>
+              )}
             </div>
           </>
         ) : null}

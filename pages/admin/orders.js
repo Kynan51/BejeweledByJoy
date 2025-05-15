@@ -117,7 +117,10 @@ export default function AdminOrders() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           className="text-purple-600 hover:underline mr-2"
-                          onClick={() => setSelectedOrderId(order.id)}
+                          onClick={() => {
+                            console.log('[ADMIN ORDERS] View Details clicked for order:', order.id);
+                            setSelectedOrderId(order.id);
+                          }}
                         >
                           View Details
                         </button>
@@ -152,7 +155,10 @@ export default function AdminOrders() {
                       </div>
                       <button
                         className="text-sm font-medium text-purple-600 hover:text-purple-500"
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => {
+                          console.log('[ADMIN ORDERS] View Details clicked for order:', order.id);
+                          setSelectedOrderId(order.id);
+                        }}
                       >
                         View Details
                       </button>
@@ -204,7 +210,10 @@ export default function AdminOrders() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           className="text-purple-600 hover:underline mr-2"
-                          onClick={() => setSelectedOrderId(order.id)}
+                          onClick={() => {
+                            console.log('[ADMIN ORDERS] View Details clicked for order:', order.id);
+                            setSelectedOrderId(order.id);
+                          }}
                         >
                           View Details
                         </button>
@@ -239,7 +248,10 @@ export default function AdminOrders() {
                       </div>
                       <button
                         className="text-sm font-medium text-purple-600 hover:text-purple-500"
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => {
+                          console.log('[ADMIN ORDERS] View Details clicked for order:', order.id);
+                          setSelectedOrderId(order.id);
+                        }}
                       >
                         View Details
                       </button>
@@ -249,7 +261,15 @@ export default function AdminOrders() {
               </div>
             </div>
           )}
-          <OrderDetailsModal orderId={selectedOrderId} open={!!selectedOrderId} onClose={() => setSelectedOrderId(null)} />
+          <OrderDetailsModal 
+            orderId={selectedOrderId} 
+            open={!!selectedOrderId} 
+            onClose={() => {
+              console.log('[ADMIN ORDERS] Closing OrderDetailsModal');
+              setSelectedOrderId(null);
+            }}
+          />
+          {console.log('[ADMIN ORDERS] OrderDetailsModal rendered. selectedOrderId:', selectedOrderId, 'open:', !!selectedOrderId)}
         </div>
       </div>
     </Layout>
