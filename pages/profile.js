@@ -616,45 +616,36 @@ export default function Profile() {
                             key={order.id}
                             className="border rounded-lg overflow-hidden"
                           >
-                            <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
-                              <div>
-                                <span className="text-xs text-gray-500">
-                                  Order ID:
-                                </span>
-                                <span className="ml-2 text-sm font-medium">
-                                  {order.id.substring(0, 8).toUpperCase()}
-                                </span>
+                            <div className="bg-gray-50 px-4 py-3 flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-0">
+                              <div className="flex flex-row md:flex-col gap-4 md:gap-0 md:mr-4">
+                                <div>
+                                  <span className="text-xs text-gray-500">Order ID:</span>
+                                  <span className="ml-2 text-sm font-medium">{order.id.substring(0, 8).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-500">Date:</span>
+                                  <span className="ml-2 text-sm font-medium">{new Date(order.created_at).toLocaleDateString()}</span>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-xs text-gray-500">
-                                  Date:
-                                </span>
-                                <span className="ml-2 text-sm font-medium">
-                                  {new Date(
-                                    order.created_at
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <div>
+                              <div className="mt-2 md:mt-0">
                                 <span
                                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     order.status === "completed"
                                       ? "bg-green-100 text-green-800"
                                       : order.status === "shipped"
                                       ? "bg-blue-100 text-blue-800"
+                                      : order.status === "fulfilled"
+                                      ? "bg-green-100 text-green-800"
                                       : "bg-yellow-100 text-yellow-800"
                                   }`}
                                 >
-                                  {order.status.charAt(0).toUpperCase() +
-                                    order.status.slice(1)}
+                                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                 </span>
                               </div>
                             </div>
-                            <div className="px-4 py-3 flex justify-between items-center">
+                            <div className="px-4 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
                               <div>
-                                <span className="text-sm font-medium text-gray-900">
-                                  Total: Ksh{order.total_amount.toFixed(2)}
-                                </span>
+                                <span className="text-sm font-medium text-gray-900">Total: Ksh{order.total_amount.toFixed(2)}</span>
                               </div>
                               <Link
                                 href={`/order-confirmation/${order.id}`}

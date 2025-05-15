@@ -101,10 +101,21 @@ export default function OrderConfirmation() {
         </div>
       )}
       <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h1 className="text-2xl font-semibold text-gray-900">Order Confirmation</h1>
+              <a
+                href={`/api/order-pdf/${order?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-4 p-2 rounded-full bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                aria-label="Download PDF"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                </svg>
+              </a>
             </div>
 
             <div className="px-6 py-4">
@@ -127,85 +138,77 @@ export default function OrderConfirmation() {
                 <p className="text-gray-600">Your order has been confirmed and will be shipped soon.</p>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Order Number:</span>
-                  <span className="font-medium">{order ? order.id?.substring(0, 8)?.toUpperCase() : "-"}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Date:</span>
-                  <span className="font-medium">{order ? new Date(order.created_at).toLocaleDateString() : "-"}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Total Amount:</span>
-                  <span className="font-medium">Ksh{order ? order.total_amount?.toFixed(2) : "-"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <span className="font-medium capitalize">{order ? order.status : "-"}</span>
-                </div>
-              </div>
-
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Order Items</h3>
-
               <div className="border rounded-lg overflow-hidden mb-6">
-                <table className="min-w-full divide-y divide-gray-200">
+                {/* Desktop Table Layout */}
+                <table className="w-full text-xs sm:text-sm table-fixed hidden md:table">
+                  <colgroup>
+                    <col style={{ width: '40%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '20%' }} />
+                  </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Product
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Price
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Quantity
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Total
-                      </th>
+                      <th className="p-1 sm:p-2 text-left font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                      <th className="p-1 sm:p-2 text-left font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                      <th className="p-1 sm:p-2 text-left font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                      <th className="p-1 sm:p-2 text-left font-medium text-gray-500 uppercase tracking-wider">Total</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {orderItems.map((item) => (
                       <tr key={item.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="p-1 sm:p-2 break-words align-top max-w-[120px] sm:max-w-none">
                           <div className="text-sm font-medium text-gray-900">{item.product_name}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="p-1 sm:p-2 align-top">
                           <div className="text-sm text-gray-500">Ksh{item.product_price.toFixed(2)}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="p-1 sm:p-2 align-top">
                           <div className="text-sm text-gray-500">{item.quantity}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            Ksh{(item.product_price * item.quantity).toFixed(2)}
-                          </div>
+                        <td className="p-1 sm:p-2 align-top">
+                          <div className="text-sm text-gray-900">Ksh{(item.product_price * item.quantity).toFixed(2)}</div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {/* Mobile Card/List Layout */}
+                <div className="block md:hidden divide-y divide-gray-200">
+                  {orderItems.map((item) => (
+                    <div key={item.id} className="flex flex-col gap-2 p-3">
+                      <div className="font-semibold text-gray-900 text-base mb-1">{item.product_name}</div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <div className="flex-1 min-w-[120px]">
+                          <span className="text-gray-500">Price: </span>
+                          <span className="text-gray-900 font-medium">Ksh{item.product_price.toFixed(2)}</span>
+                        </div>
+                        <div className="flex-1 min-w-[80px]">
+                          <span className="text-gray-500">Qty: </span>
+                          <span className="text-gray-900 font-medium">{item.quantity}</span>
+                        </div>
+                        <div className="flex-1 min-w-[100px]">
+                          <span className="text-gray-500">Total: </span>
+                          <span className="text-gray-900 font-medium">Ksh{(item.product_price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex justify-between">
-                <Link href="/" className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-between items-stretch mt-4">
+                <Link
+                  href="/"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
                   Continue Shopping
                 </Link>
-                <Link href="/profile" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                <Link
+                  href="/profile"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
                   View All Orders
                 </Link>
               </div>

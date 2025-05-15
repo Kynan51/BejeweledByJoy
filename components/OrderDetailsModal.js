@@ -82,7 +82,12 @@ export default function OrderDetailsModal({ orderId, open, onClose }) {
           <div className="text-red-600 text-center">{error}</div>
         ) : order ? (
           <>
-            <h2 className="text-lg font-bold mb-2">Order #{order.id.substring(0,8).toUpperCase()}</h2>
+            <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+              Order #{order.id.substring(0,8).toUpperCase()}
+              {order.type === 'whatsapp' && (
+                <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-green-600 text-white">WhatsApp</span>
+              )}
+            </h2>
             <div className="mb-2 text-sm text-gray-600">Placed: {new Date(order.created_at).toLocaleString()}</div>
             <div className="mb-2 text-sm">Status: <span className="capitalize font-semibold">{order.status}</span></div>
             <div className="mb-2 text-sm">Total: <span className="font-semibold">Ksh{order.total_amount?.toFixed(2)}</span></div>
